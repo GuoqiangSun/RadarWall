@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+    <Button
+        android:id="@+id/btn_line"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="折线" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="200dp">
+
+        <com.victory.chartview.ScrollChartView
+            android:id="@+id/scroll_chart_main"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <com.victory.chartview.CircleIndicatorView
+            android:id="@+id/civ_main"
+            android:layout_width="33dp"
+            android:layout_height="match_parent"
+            android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true"
+            android:layout_marginBottom="25dp"
+            android:background="@drawable/shape_circle_indicator" />
+    </RelativeLayout>
+
+
+    <TextView
+        android:id="@+id/tv_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/black"
+        android:layout_gravity="center_horizontal"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/tv_data"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/black"
+        android:layout_gravity="center_horizontal"
+        android:textSize="16sp" />
+
+
+    <com.veken.chartview.view.LineChartView
+        android:id="@+id/chart_view"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        app:clickable="true"
+        app:defaultStrokeWidth="0.5dp"
+        app:defaultTextSize="16sp"
+        app:endColor="@color/endColor"
+        app:isNeedBg="true"
+        app:pointClickRadius="3dp"
+        app:pointDefaultRadius="2dp"
+        app:showPicResource="@mipmap/ic_launcher"
+        app:startColor="@color/startColor" />
+
+</LinearLayout>
