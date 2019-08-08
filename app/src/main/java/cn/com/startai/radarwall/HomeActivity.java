@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import cn.com.startai.radarwall.calibration.CalibrationActivity;
 import cn.com.startai.radarwall.redview.RedViewActivity;
 import cn.com.startai.radarwall.utils.FileManager;
+import cn.com.swain.baselib.display.ScreenUtils;
 import cn.com.swain.baselib.log.TFlog;
 import cn.com.swain.baselib.log.Tlog;
 import cn.com.swain.baselib.log.logRecord.impl.LogRecordManager;
@@ -254,5 +255,33 @@ public class HomeActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         PermissionSingleton.getInstance().onRequestPermissionsResult(this, requestCode, permissions, grantResults);
+    }
+
+    public void inputTab(View view) {
+        View viewById = findViewById(R.id.toast_btn);
+        final int[] locationOnScreen = ScreenUtils.getLocationOnScreen(viewById);
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                long l = System.currentTimeMillis();
+//                int shell = MainActivity.getInstance().shell(" input keyevent 4 ");
+                Tlog.v(TAG, " shell: in android  startTime:" + l);
+                int shell = MainActivity.getInstance().shell("input tap " + locationOnScreen[0] + " " + locationOnScreen[1]);
+                long l1 = System.currentTimeMillis();
+                Tlog.v(TAG, " shell: in android  endTime:" + l1);
+                Tlog.v(TAG, " shell: in android" + shell + " useTime:" + (l1 - l));
+
+                MainActivity.getInstance().tapxy(locationOnScreen[0], locationOnScreen[1]);
+                Tlog.v(TAG, " tapxy in thread:  useTime:" + (System.currentTimeMillis() - l1));
+            }
+        });
+
+        long l1 = System.currentTimeMillis();
+        MainActivity.getInstance().tapxy(locationOnScreen[0], locationOnScreen[1]);
+        Tlog.v(TAG, " tapxy in ui:  useTime:" + (System.currentTimeMillis() - l1));
+    }
+
+    public void toastclick(View view) {
+        Toast.makeText(getApplicationContext(), "点击了toastButton", Toast.LENGTH_SHORT).show();
     }
 }

@@ -48,22 +48,10 @@ public class RedViewActivity extends AppCompatActivity {
 
         mRedView = findViewById(R.id.redview);
         mRedView.setTouchLsn(new RedView.IVertexTouchLsn() {
-            long toastTime;
 
             @Override
             public void onClick(int i) {
-                if (!canCollect) {
-                    Toast.makeText(getApplicationContext(), "正在收集背景数据", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                long l = System.currentTimeMillis();
-                if ((toastTime + 3000) < l) {
-                    Toast.makeText(getApplicationContext(), "开始收集" + i + "点", Toast.LENGTH_SHORT).show();
-                    toastTime = l;
-                    if (mCalibration != null) {
-                        mCalibration.setCollectIndex(i);
-                    }
-                }
+                collect(i);
             }
         });
 
@@ -246,4 +234,33 @@ public class RedViewActivity extends AppCompatActivity {
             }
         });
     }
+
+    private int clickCollectTimes;
+
+    public void collect(View view) {
+        int i = clickCollectTimes % 4;
+        boolean collect = collect(i+1);
+        if (collect) clickCollectTimes++;
+    }
+
+    long toastTime;
+
+    private boolean collect(int i) {
+
+        if (!canCollect) {
+            Toast.makeText(getApplicationContext(), "正在收集背景数据", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        long l = System.currentTimeMillis();
+        if ((toastTime + 3000) < l) {
+            Toast.makeText(getApplicationContext(), "开始收集" + i + "点", Toast.LENGTH_SHORT).show();
+            toastTime = l;
+            if (mCalibration != null) {
+                mCalibration.setCollectIndex(i);
+            }
+            return true;
+        }
+        return false;
+    }
+
 }

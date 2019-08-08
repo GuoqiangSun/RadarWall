@@ -34,11 +34,15 @@ public class Calibration implements Runnable {
     private final int MAX_DISTANCE = MainActivity.MAX_DISTANCE;
     private final float[] DEGREE = MainActivity.DEGREE;
     private final int WEAK_SIGNAL = MainActivity.WEAK_SIGNAL;
-
+    private final int DATA_HZ = MainActivity.MAX_FPS;
+    private final int TOUCH_FPS = 10; // 1秒 10帧
+    private final int AVAILABLE_TOUCH_LENGTH = DATA_HZ / TOUCH_FPS;
 
     private ExecutorService executorService;
 
     private WallScreen mWallScreen;
+
+    private PointF[] mAvailableTouchPointInScreen;
 
     public Calibration(PointF mPointA,
                        PointF mPointB,
@@ -46,33 +50,39 @@ public class Calibration implements Runnable {
                        PointF mPointD,
                        PointF mPointScreen) {
         this.mWallScreen = new WallScreen(mPointA, mPointB, mPointC, mPointD, mPointScreen);
+        this.needCalibration = true;
+
         this.executorService = Executors.newSingleThreadExecutor();
 
         this.mBackgroundData = new BackgroundData();
         this.BG = mBackgroundData.getAvgBg();
 
         this.vertexUtil = new VertexUtil();
-        this.needCalibration = true;
+
+        mAvailableTouchPointInScreen = new PointF[AVAILABLE_TOUCH_LENGTH];
+        for (int i = 0; i < AVAILABLE_TOUCH_LENGTH; i++) {
+            mAvailableTouchPointInScreen[i] = new PointF();
+        }
     }
 
     private VertexUtil vertexUtil;
 
-    public Calibration() {
-        this.mBackgroundData = new BackgroundData();
-        this.executorService = Executors.newSingleThreadExecutor();
-        this.needCalibration = false;
-    }
-
     public void start() {
-        this.run = true;
-        if (executorService != null) {
-            executorService.execute(this);
+        if (this.run) {
+            return;
         }
+        this.run = true;
+        if (executorService == null) {
+            this.executorService = Executors.newSingleThreadExecutor();
+        }
+        this.executorService.execute(this);
     }
 
     public void stop() {
+        if (!this.run) {
+            return;
+        }
         this.run = false;
-        this.mCallBack = null;
         if (executorService != null) {
             executorService.shutdownNow();
             executorService = null;
@@ -108,7 +118,7 @@ public class Calibration implements Runnable {
 
         final int[] mAvailableIndexBuf = new int[SIZE]; // 可用下标
         final PointF nullPointF = new PointF(-30f, 0f);
-        final PointF touchPointFInWall = new PointF();
+        final PointF touchPointFInWall = new PointF(-30f, 0f);
         final PointF touchPointFInScreen = new PointF();
 
         while (run) {
@@ -150,6 +160,7 @@ public class Calibration implements Runnable {
             if (availableSize < 3) {
                 if (this.mCallBack != null) {
                     this.mCallBack.onTouchPointInWall(nullPointF);
+                    addPointIndex = 0;
                     this.mCallBack.onTouchPointInScreen(nullPointF);
                 }
                 continue;
@@ -162,14 +173,13 @@ public class Calibration implements Runnable {
                 this.mCallBack.onTouchPointInWall(touchPointFInWall);
             }
 
-            if (!calibrationFinish && needCalibration) {
-                if (calculationVertex(touchPointFInWall) >= 4) {
+            if (!calibrationFinish) {
+                if (needCalibration && calculationVertex(touchPointFInWall) >= 4) {
                     Tlog.e(TAG, " calibrationFinish " + vertexUtil.pointFStoString());
                     calibrationFinish = true;
                     collectIndex = -1;
                     vertexUtil.calculationABCD();
                     mWallScreen.setWallPoint(vertexUtil.getPointFS());
-                    mWallScreen.calculationWallScreen();
                     if (mVertexFinish != null) {
                         mVertexFinish.onCollectPointInWall(vertexUtil.getPointFS());
                         mVertexFinish.onCollectPointInScreen(mWallScreen.calculationVertexInScreen());
@@ -182,12 +192,35 @@ public class Calibration implements Runnable {
             }
 
             mWallScreen.calculationInScreen(touchPointFInWall, touchPointFInScreen);
-            if (mCallBack != null) {
-                mCallBack.onTouchPointInScreen(touchPointFInScreen);
-            }
+            onTouchPointInScreen(touchPointFInScreen);
+//            if (mCallBack != null) {
+//                mCallBack.onTouchPointInScreen(touchPointFInScreen);
+//            }
         }
 
         Tlog.e(TAG, " Calibration run finish ");
+    }
+
+    private int addPointIndex = 0;
+    private final PointF avgPointF = new PointF();
+
+    private void onTouchPointInScreen(PointF mPointF) {
+        int i = addPointIndex % AVAILABLE_TOUCH_LENGTH;
+        mAvailableTouchPointInScreen[i].set(mPointF);
+        addPointIndex++;
+        if (i == (AVAILABLE_TOUCH_LENGTH - 1)) {
+            avgPointF.x = 0;
+            avgPointF.y = 0;
+            for (PointF tPointF : mAvailableTouchPointInScreen) {
+                avgPointF.x += tPointF.x;
+                avgPointF.y += tPointF.y;
+            }
+            avgPointF.x /= AVAILABLE_TOUCH_LENGTH;
+            avgPointF.y /= AVAILABLE_TOUCH_LENGTH;
+            if (mCallBack != null) {
+                mCallBack.onTouchPointInScreen(avgPointF);
+            }
+        }
     }
 
     private int calculationVertex(PointF touchPointF) {
@@ -323,7 +356,7 @@ public class Calibration implements Runnable {
                     && (mDistanceBuf[i + 2] < MAX_DISTANCE))
                     ||
                     (mDiff < MMIN_DIFF_DIS && mDiff > MMAX_DIFF_DIS //背景无效时
-                            && mDistanceBuf[i - 1] < MAX_DISTANCE
+                            && mDistanceBuf[i - 1] < MAX_DISTANCE // 下一点和下一点数据有效
                             && mDistanceBuf[i + 1] < MAX_DISTANCE)) {
 
                 int absHead = Math.abs(mDiff);

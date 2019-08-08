@@ -131,6 +131,10 @@ public class MainActivity {
 
     public native void stopAlwaysAcquirePositionData();
 
+    public native int shell(String cmd);
+
+    public native void tapxy(int x,int y);
+
     protected final void callBack(char[] buf, int size, int result) {
         if (mDataCallBack != null) {
             mDataCallBack.onPositionData(buf, size, result);

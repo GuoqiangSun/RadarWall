@@ -362,14 +362,12 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             if (this.width < this.height) {
                 yd = this.height - this.width;
             } else {
-                yd = 0;
+                yd = 260;
             }
 
             this.radarTop = yd / 4 * 3;
-
             this.radarWidth = this.width;
             this.radarHeight = this.height - yd;
-
             this.radarBottom = this.radarTop + this.radarHeight;
 
             this.wdr = this.radarWidth / MAX_POINT;
@@ -749,10 +747,10 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                     canvas.drawCircle(vertexD.x, vertexD.y, VERTEX_RADIUS, mMovePaint);
 
                     // 画墙上虚拟屏
-//                    canvas.drawLine(virtualScreen[0], virtualScreen[1], virtualScreen[2], virtualScreen[3], mVirtualScreenPaint);
-//                    canvas.drawLine(virtualScreen[2], virtualScreen[3], virtualScreen[4], virtualScreen[5], mVirtualScreenPaint);
-//                    canvas.drawLine(virtualScreen[4], virtualScreen[5], virtualScreen[6], virtualScreen[7], mVirtualScreenPaint);
-//                    canvas.drawLine(virtualScreen[6], virtualScreen[7], virtualScreen[0], virtualScreen[1], mVirtualScreenPaint);
+                    canvas.drawLine(virtualScreen[0], virtualScreen[1], virtualScreen[2], virtualScreen[3], mVirtualScreenPaint);
+                    canvas.drawLine(virtualScreen[2], virtualScreen[3], virtualScreen[4], virtualScreen[5], mVirtualScreenPaint);
+                    canvas.drawLine(virtualScreen[4], virtualScreen[5], virtualScreen[6], virtualScreen[7], mVirtualScreenPaint);
+                    canvas.drawLine(virtualScreen[6], virtualScreen[7], virtualScreen[0], virtualScreen[1], mVirtualScreenPaint);
 
                     canvas.drawRect(virtualScreenRect[0], virtualScreenRect[1],
                             virtualScreenRect[4], virtualScreenRect[5], mVirtualScreenPaintRect);

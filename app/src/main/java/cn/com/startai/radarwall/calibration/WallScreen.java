@@ -2,7 +2,6 @@ package cn.com.startai.radarwall.calibration;
 
 import android.graphics.PointF;
 
-import cn.com.startai.radarwall.MainActivity;
 import cn.com.swain.baselib.display.LinearFunction;
 import cn.com.swain.baselib.display.MathUtils;
 import cn.com.swain.baselib.display.Screen;
@@ -42,13 +41,11 @@ public class WallScreen {
             mWallPointD,// d 点
             mPointWallScreenA;//墙上的屏幕A
 
-    private PointF mWallPhoneScreenRate; // 墙上屏幕 比 手机屏幕的比例
+    private PointF
+            mWallPhoneScreenRate; // 墙上屏幕 比 手机屏幕的比例
 
     private Screen mWallScreen,
             mWallCollectScreen; //墙上较准屏幕
-
-    private LinearFunction mWidthLinearFun,
-            mHeightLinearFun;
 
     public WallScreen(PointF mPointA,
                       PointF mPointB,
@@ -64,7 +61,6 @@ public class WallScreen {
         this.mPhoneCollectScreen = new Screen();
         this.mPhoneCollectScreen.width = Math.abs(mPhonePointD.x - mPhonePointA.x);
         this.mPhoneCollectScreen.height = Math.abs(mPhonePointB.y - mPhonePointA.y);
-
 
         Tlog.v(TAG_SIN, " PhonePointA: " + mPointA.toString());
         Tlog.v(TAG_SIN, " PhonePointB: " + mPointB.toString());
@@ -82,11 +78,9 @@ public class WallScreen {
         this.mWallCollectScreen = new Screen();
 
         this.mWallPhoneScreenRate = new PointF();
-
-        this.mWidthLinearFun = new LinearFunction();
-        this.mHeightLinearFun = new LinearFunction();
     }
 
+    private double InclinationAngle;
 
     public void setWallPoint(PointF[] pointFS) {
 
@@ -96,17 +90,23 @@ public class WallScreen {
         mWallPointC.set(pointFS[2]);
         mWallPointD.set(pointFS[3]);
 
-        this.mWidthLinearFun.calculationLinearFunction(mWallPointA, mWallPointD);
-        this.mHeightLinearFun.calculationLinearFunction(mWallPointA, mWallPointB);
+        float angle = MathUtils.angle(mWallPointA, mWallPointB, new PointF(mWallPointA.x, mWallPointB.y));
+        float angle2 = MathUtils.angle(mWallPointA, mWallPointD, new PointF(mWallPointD.x, mWallPointA.y));
+        InclinationAngle = (angle+ angle2) / 2;
+
+        MathUtils.rotate(mWallPointA, mWallPointB, InclinationAngle);
+        MathUtils.rotate(mWallPointA, mWallPointC, InclinationAngle);
+        MathUtils.rotate(mWallPointA, mWallPointD, InclinationAngle);
 
         Tlog.v(TAG_SIN, " WallPointA: " + mWallPointA.toString());
         Tlog.v(TAG_SIN, " WallPointB: " + mWallPointB.toString());
         Tlog.v(TAG_SIN, " WallPointC: " + mWallPointC.toString());
         Tlog.v(TAG_SIN, " WallPointD: " + mWallPointD.toString());
 
+        calculationWallScreen();
     }
 
-    public void calculationWallScreen() {
+    private void calculationWallScreen() {
 
         mWallCollectScreen.width = Math.abs(mWallPointD.x - mWallPointA.x);
         mWallCollectScreen.height = Math.abs(mWallPointB.y - mWallPointA.y);
@@ -147,10 +147,14 @@ public class WallScreen {
 
     public PointF[] calculationVirtualScreen() {
 
-        pointFsVirtualScreen[0].set(pointFsVirtualScreenRect[0]);
-        pointFsVirtualScreen[1].set(pointFsVirtualScreenRect[1]);
-        pointFsVirtualScreen[2].set(pointFsVirtualScreenRect[2]);
-        pointFsVirtualScreen[3].set(pointFsVirtualScreenRect[3]);
+        pointFsVirtualScreen[0].set(mWallPointA.x - mWallPhoneScreenRate.x * mPhonePointA.x,
+                mWallPointA.y - mWallPhoneScreenRate.y * mPhonePointA.y);
+        pointFsVirtualScreen[1].set(mWallPointB.x - mWallPhoneScreenRate.x * mPhonePointB.x,
+                mWallPointB.y - mWallPhoneScreenRate.y * mPhonePointB.y);
+        pointFsVirtualScreen[2].set(mWallPointC.x - mWallPhoneScreenRate.x * mPhonePointC.x,
+                mWallPointC.y - mWallPhoneScreenRate.y * mPhonePointC.y);
+        pointFsVirtualScreen[3].set(mWallPointD.x - mWallPhoneScreenRate.x * mPhonePointD.x,
+                mWallPointD.y - mWallPhoneScreenRate.y * mPhonePointD.y);
 
         return pointFsVirtualScreen;
     }
@@ -158,26 +162,24 @@ public class WallScreen {
     private final PointF[] pointFsVertexInScreen = new PointF[]{new PointF(), new PointF(),
             new PointF(), new PointF()};
 
-    private double InclinationAngle;
-
     // 转换墙上的校准点在手机屏幕上的位置
     public PointF[] calculationVertexInScreen() {
+        calculationInScreenNoRate(mWallPointA, pointFsVertexInScreen[0]);
+        calculationInScreenNoRate(mWallPointB, pointFsVertexInScreen[1]);
+        calculationInScreenNoRate(mWallPointC, pointFsVertexInScreen[2]);
+        calculationInScreenNoRate(mWallPointD, pointFsVertexInScreen[3]);
 
-        calculationInScreen(mWallPointA, pointFsVertexInScreen[0]);
-        calculationInScreen(mWallPointB, pointFsVertexInScreen[1]);
-        calculationInScreen(mWallPointC, pointFsVertexInScreen[2]);
-        calculationInScreen(mWallPointD, pointFsVertexInScreen[3]);
-
-//        InclinationAngle = MainActivity.asin((pointFsVertexInScreen[1].x - pointFsVertexInScreen[0].x)
-//                / MainActivity.calculationBevel(pointFsVertexInScreen[0], pointFsVertexInScreen[1]));
-
-        float angle = MathUtils.angle(pointFsVertexInScreen[0], pointFsVertexInScreen[1], mPhonePointB);
-        float angle1 = MathUtils.angle(pointFsVertexInScreen[0], pointFsVertexInScreen[2], mPhonePointC);
-        float angle2 = MathUtils.angle(pointFsVertexInScreen[0], pointFsVertexInScreen[3], mPhonePointD);
-        InclinationAngle = (angle + angle1 + angle2) / 3;
-        MathUtils.rotate(pointFsVertexInScreen[0], pointFsVertexInScreen[1], InclinationAngle);
-        MathUtils.rotate(pointFsVertexInScreen[0], pointFsVertexInScreen[2], InclinationAngle);
-        MathUtils.rotate(pointFsVertexInScreen[0], pointFsVertexInScreen[3], InclinationAngle);
+//        calculationInScreen(mWallPointA, pointFsVertexInScreen[0]);
+//        calculationInScreen(mWallPointB, pointFsVertexInScreen[1]);
+//        calculationInScreen(mWallPointC, pointFsVertexInScreen[2]);
+//        calculationInScreen(mWallPointD, pointFsVertexInScreen[3]);
+//        float angle = MathUtils.angle(pointFsVertexInScreen[0], pointFsVertexInScreen[1], mPhonePointB);
+//        float angle1 = MathUtils.angle(pointFsVertexInScreen[0], pointFsVertexInScreen[2], mPhonePointC);
+//        float angle2 = MathUtils.angle(pointFsVertexInScreen[0], pointFsVertexInScreen[3], mPhonePointD);
+//        InclinationAngle = (angle + angle1 + angle2) / 3;
+//        MathUtils.rotate(pointFsVertexInScreen[0], pointFsVertexInScreen[1], InclinationAngle);
+//        MathUtils.rotate(pointFsVertexInScreen[0], pointFsVertexInScreen[2], InclinationAngle);
+//        MathUtils.rotate(pointFsVertexInScreen[0], pointFsVertexInScreen[3], InclinationAngle);
 
         Tlog.v(TAG_SIN, " aa: " + pointFsVertexInScreen[0].toString());
         Tlog.v(TAG_SIN, " bb: " + pointFsVertexInScreen[1].toString());
@@ -185,13 +187,16 @@ public class WallScreen {
         Tlog.v(TAG_SIN, " dd: " + pointFsVertexInScreen[3].toString());
 
         return pointFsVertexInScreen;
-
     }
 
     public void calculationInScreen(PointF wallP, PointF screenP) {
-        screenP.x = (wallP.x - mPointWallScreenA.x) / mWallScreen.width * mPhoneScreen.width;
-        screenP.y = (wallP.y - mPointWallScreenA.y) / mWallScreen.height * mPhoneScreen.height;
+        calculationInScreenNoRate(wallP, screenP);
         MathUtils.rotate(pointFsVertexInScreen[0], screenP, InclinationAngle);
+    }
+
+    private void calculationInScreenNoRate(PointF wallP, PointF screenP) {
+        screenP.x = (wallP.x - mPointWallScreenA.x) / mWallPhoneScreenRate.x;
+        screenP.y = (wallP.y - mPointWallScreenA.y) / mWallPhoneScreenRate.y;
     }
 
 }

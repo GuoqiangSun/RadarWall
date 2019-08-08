@@ -30,6 +30,12 @@
             android:onClick="once"
             android:text="单次" />
 
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="collect"
+            android:text="校准" />
+
     </LinearLayout>
 
     <cn.com.startai.radarwall.redview.RedView

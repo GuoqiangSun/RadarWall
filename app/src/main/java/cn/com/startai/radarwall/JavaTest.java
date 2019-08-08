@@ -22,6 +22,9 @@ public class JavaTest {
 //        sort();
 //        mo();
 
+//        for (int i = 0; i < 30; i++) {
+//            System.out.println("i:" + i + " " + (i % 6));
+//        }
 
 //        double sqrt = Math.sqrt(Math.pow(3, 2) + Math.pow(4, 2));
 //        System.out.println(sqrt);
@@ -29,6 +32,8 @@ public class JavaTest {
 //        count();
 
         recalculation(10, 0, 30);
+
+
     }
 
     private static void recalculation(float bx, float by, double d) {
@@ -45,16 +50,6 @@ public class JavaTest {
         PF[] pfs = new PF[]{new PF(0, 0), new PF(bx, by), new PF(x0, y0)};
         float angle;
         angle = Angle(pfs[0], pfs[1], pfs[2]);
-        System.out.println(" angle:" + angle);
-        angle = Angle(pfs[0], pfs[2], pfs[1]);
-        System.out.println(" angle:" + angle);
-        angle = Angle(pfs[1], pfs[0], pfs[2]);
-        System.out.println(" angle:" + angle);
-        angle = Angle(pfs[1], pfs[2], pfs[0]);
-        System.out.println(" angle:" + angle);
-        angle = Angle(pfs[2], pfs[0], pfs[1]);
-        System.out.println(" angle:" + angle);
-        angle = Angle(pfs[2], pfs[1], pfs[0]);
         System.out.println(" angle:" + angle);
     }
 

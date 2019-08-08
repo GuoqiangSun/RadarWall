@@ -102,5 +102,18 @@
             android:onClick="saveLog"
             android:text="保存日志"
             android:textAllCaps="false" />
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="inputTab"
+            android:text="tap"
+            android:textAllCaps="false" />
+        <Button
+            android:id="@+id/toast_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="toastclick"
+            android:text="toast"
+            android:textAllCaps="false" />
     </LinearLayout>
 </LinearLayout>

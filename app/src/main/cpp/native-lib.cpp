@@ -266,3 +266,49 @@ Java_cn_com_startai_radarwall_MainActivity_stopAlwaysAcquirePositionData(JNIEnv 
     TLOGD(" Java_cn_com_startai_radarwall_MainActivity_stopAlwaysAcquirePositionData ");
     flag = 0;
 }
+
+int64_t getCurrentTime()      //直接调用这个函数就行了，返回值最好是int64_t，long long应该也可以
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);    //该函数在sys/time.h头文件中
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_cn_com_startai_radarwall_MainActivity_shell(JNIEnv *env, jobject instance, jstring cmd_) {
+    const char *cmd = env->GetStringUTFChars(cmd_, 0);
+    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_shell ");
+    TLOGD(" shell : %s", cmd);
+    // TODO
+
+    int64_t time1 = getCurrentTime();
+    TLOGD(" shell startTime : %ld", time1);
+    int i = system(cmd);
+    int64_t time2 = getCurrentTime();
+
+    TLOGD(" shell endTime : %ld", time2);
+    TLOGD(" shell useTime : %ld", (time2 - time1));
+    env->ReleaseStringUTFChars(cmd_, cmd);
+    return i;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_cn_com_startai_radarwall_MainActivity_tapxy(JNIEnv *env, jobject instance, jint x, jint y) {
+
+    // TODO
+    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_tapxy %d,%d", x, y);
+
+    short sinTab[10];
+    sinTab[0] = 1;
+    sinTab[1] = 2;
+    short *pSin = (short *) sinTab;
+    int data = 1;
+    int i = ((data * (*pSin)));
+    TLOGD(" (data * (*pSin) %d", i)
+    pSin++;
+    i = ((data * (*pSin)));
+    TLOGD(" (data * (*pSin) %d", i)
+}
+
