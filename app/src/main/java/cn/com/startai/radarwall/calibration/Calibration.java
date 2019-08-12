@@ -1,14 +1,15 @@
 package cn.com.startai.radarwall.calibration;
 
-import android.graphics.PointF;
 import android.os.Process;
 
+import java.io.Serializable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import cn.com.startai.radarwall.MainActivity;
 import cn.com.startai.radarwall.utils.PrintData;
 import cn.com.swain.baselib.display.MathUtils;
+import cn.com.swain.baselib.display.PointS;
 import cn.com.swain.baselib.log.Tlog;
 
 /**
@@ -16,15 +17,15 @@ import cn.com.swain.baselib.log.Tlog;
  * date 2019/7/30
  * desc
  */
-public class Calibration implements Runnable {
+public class Calibration implements Runnable, Serializable {
 
     private String TAG = "Calibration";
 
     private String TAG_LARG = "distance";
 
 
-    // 需要校准
-    private final boolean needCalibration;
+    // 可以校准
+    private boolean canCalibration;
 
     // 校准成功
     private boolean calibrationFinish;
@@ -36,36 +37,52 @@ public class Calibration implements Runnable {
     private final int WEAK_SIGNAL = MainActivity.WEAK_SIGNAL;
     private final int DATA_HZ = MainActivity.MAX_FPS;
     private final int TOUCH_FPS = 10; // 1秒 10帧
-    private final int AVAILABLE_TOUCH_LENGTH = DATA_HZ / TOUCH_FPS;
+    private final int AVAILABLE_TOUCH_LENGTH = DATA_HZ / TOUCH_FPS / 2;
+    private final int clearPS = Math.max(AVAILABLE_TOUCH_LENGTH / 2, 1);
 
     private ExecutorService executorService;
 
     private WallScreen mWallScreen;
 
-    private PointF[] mAvailableTouchPointInScreen;
+    private PointS[] mAvailableTouchPointInScreen;
 
-    public Calibration(PointF mPointA,
-                       PointF mPointB,
-                       PointF mPointC,
-                       PointF mPointD,
-                       PointF mPointScreen) {
-        this.mWallScreen = new WallScreen(mPointA, mPointB, mPointC, mPointD, mPointScreen);
-        this.needCalibration = true;
+    Calibration() {
+        this.mWallScreen = new WallScreen();
+        this.canCalibration = false;
 
         this.executorService = Executors.newSingleThreadExecutor();
 
         this.mBackgroundData = new BackgroundData();
         this.BG = mBackgroundData.getAvgBg();
 
-        this.vertexUtil = new VertexUtil();
+        this.mVertexCollect = new VertexCollect();
 
-        mAvailableTouchPointInScreen = new PointF[AVAILABLE_TOUCH_LENGTH];
+        mAvailableTouchPointInScreen = new PointS[AVAILABLE_TOUCH_LENGTH];
         for (int i = 0; i < AVAILABLE_TOUCH_LENGTH; i++) {
-            mAvailableTouchPointInScreen[i] = new PointF();
+            mAvailableTouchPointInScreen[i] = new PointS();
         }
+        Tlog.v(TAG, " new Calibration() createTime:" + System.currentTimeMillis());
     }
 
-    private VertexUtil vertexUtil;
+    public Calibration(PointS mPointA,
+                       PointS mPointB,
+                       PointS mPointC,
+                       PointS mPointD,
+                       PointS mPointScreen) {
+        this();
+        setCollectPoint(mPointA, mPointB, mPointC, mPointD, mPointScreen);
+    }
+
+    public void setCollectPoint(PointS mPointA,
+                                PointS mPointB,
+                                PointS mPointC,
+                                PointS mPointD,
+                                PointS mPhoneScreen) {
+        this.mWallScreen.set(mPointA, mPointB, mPointC, mPointD, mPhoneScreen);
+        this.canCalibration = true;
+    }
+
+    private VertexCollect mVertexCollect;
 
     public void start() {
         if (this.run) {
@@ -73,6 +90,7 @@ public class Calibration implements Runnable {
         }
         this.run = true;
         if (executorService == null) {
+            Tlog.v(TAG, " Calibration start() newSingleThreadExecutor()");
             this.executorService = Executors.newSingleThreadExecutor();
         }
         this.executorService.execute(this);
@@ -83,6 +101,9 @@ public class Calibration implements Runnable {
             return;
         }
         this.run = false;
+        synchronized (synObj) {
+            synObj.notify();
+        }
         if (executorService != null) {
             executorService.shutdownNow();
             executorService = null;
@@ -101,8 +122,8 @@ public class Calibration implements Runnable {
     public void setCollectIndex(int i) {
         calibrationFinish = false;
         collectIndex = i;
-        if (vertexUtil != null) {
-            vertexUtil.resetIndex(i);
+        if (mVertexCollect != null) {
+            mVertexCollect.resetIndex(i);
         }
     }
 
@@ -117,9 +138,24 @@ public class Calibration implements Runnable {
         final int[] mDiffBuf = new int[SIZE]; // 测试数据减去背景数据的差值
 
         final int[] mAvailableIndexBuf = new int[SIZE]; // 可用下标
-        final PointF nullPointF = new PointF(-30f, 0f);
-        final PointF touchPointFInWall = new PointF(-30f, 0f);
-        final PointF touchPointFInScreen = new PointF();
+        final PointS nullPointFSerial = new PointS(-30f, 0f);
+        final PointS touchPointFSerialInWall = new PointS(-30f, 0f);
+        final PointS touchPointFSerialInScreen = new PointS();
+
+        if (mBackgroundData.countBGFinish()) {
+            if (this.mCallBack != null) {
+                this.mCallBack.onWallBG(BG);
+            }
+            if (mVertexCollect.collectFinish()) {
+                if (mVertexFinish != null) {
+                    mVertexFinish.onCollectPointInWall(mVertexCollect.getPointSS());
+                    mVertexFinish.onCollectPointInScreen(mWallScreen.calculationVertexInScreen());
+                    mVertexFinish.onVirtualScreenRect(mWallScreen.calculationVirtualScreenRect());
+                    mVertexFinish.onVirtualScreen(mWallScreen.calculationVirtualScreen());
+                    mVertexFinish.showTxt(mWallScreen.getMsg());
+                }
+            }
+        }
 
         while (run) {
 
@@ -158,73 +194,83 @@ public class Calibration implements Runnable {
             PrintData.println(TAG_LARG, mDiffBuf, "DIFF:");
 
             if (availableSize < 3) {
-                if (this.mCallBack != null) {
-                    this.mCallBack.onTouchPointInWall(nullPointF);
+                notouchTimes++;
+                if (notouchTimes > clearPS) {
                     addPointIndex = 0;
-                    this.mCallBack.onTouchPointInScreen(nullPointF);
+
+                    if (this.mCallBack != null) {
+                        this.mCallBack.onTouchPointInScreen(nullPointFSerial);
+                    }
+
+                }
+                if (this.mCallBack != null) {
+                    this.mCallBack.onTouchPointInWall(nullPointFSerial);
                 }
                 continue;
             }
             Tlog.e(TAG_LARG, " find touch point ");
 
-            calculationTouchPoint(touchPointFInWall, mAvailableIndexBuf, availableSize, mDistanceBuf);
+            calculationTouchPoint(touchPointFSerialInWall, mAvailableIndexBuf, availableSize, mDistanceBuf);
 
             if (this.mCallBack != null) {
-                this.mCallBack.onTouchPointInWall(touchPointFInWall);
+                this.mCallBack.onTouchPointInWall(touchPointFSerialInWall);
             }
 
             if (!calibrationFinish) {
-                if (needCalibration && calculationVertex(touchPointFInWall) >= 4) {
-                    Tlog.e(TAG, " calibrationFinish " + vertexUtil.pointFStoString());
+                if (canCalibration && calculationVertex(touchPointFSerialInWall) >= 4) {
+                    Tlog.e(TAG, " calibrationFinish " + mVertexCollect.PointStoString());
                     calibrationFinish = true;
                     collectIndex = -1;
-                    vertexUtil.calculationABCD();
-                    mWallScreen.setWallPoint(vertexUtil.getPointFS());
+                    mVertexCollect.calculationABCD();
+                    mWallScreen.setWallPoint(mVertexCollect.getPointSS());
                     if (mVertexFinish != null) {
-                        mVertexFinish.onCollectPointInWall(vertexUtil.getPointFS());
+                        mVertexFinish.onCollectPointInWall(mVertexCollect.getPointSS());
                         mVertexFinish.onCollectPointInScreen(mWallScreen.calculationVertexInScreen());
                         mVertexFinish.onVirtualScreenRect(mWallScreen.calculationVirtualScreenRect());
                         mVertexFinish.onVirtualScreen(mWallScreen.calculationVirtualScreen());
+                        mVertexFinish.showTxt(mWallScreen.getMsg());
                     }
                 }
 
                 continue;
             }
 
-            mWallScreen.calculationInScreen(touchPointFInWall, touchPointFInScreen);
-            onTouchPointInScreen(touchPointFInScreen);
+            mWallScreen.calculationInScreen(touchPointFSerialInWall, touchPointFSerialInScreen);
+            onTouchPointInScreen(touchPointFSerialInScreen);
 //            if (mCallBack != null) {
-//                mCallBack.onTouchPointInScreen(touchPointFInScreen);
+//                mCallBack.onTouchPointInScreen(touchPointFSerialInScreen);
 //            }
         }
 
         Tlog.e(TAG, " Calibration run finish ");
     }
 
+    private int notouchTimes = 0;
     private int addPointIndex = 0;
-    private final PointF avgPointF = new PointF();
+    private final PointS avgPointFSerial = new PointS();
 
-    private void onTouchPointInScreen(PointF mPointF) {
+    private void onTouchPointInScreen(PointS mPointFSerial) {
+        notouchTimes = 0;
         int i = addPointIndex % AVAILABLE_TOUCH_LENGTH;
-        mAvailableTouchPointInScreen[i].set(mPointF);
+        mAvailableTouchPointInScreen[i].set(mPointFSerial);
         addPointIndex++;
         if (i == (AVAILABLE_TOUCH_LENGTH - 1)) {
-            avgPointF.x = 0;
-            avgPointF.y = 0;
-            for (PointF tPointF : mAvailableTouchPointInScreen) {
-                avgPointF.x += tPointF.x;
-                avgPointF.y += tPointF.y;
+            avgPointFSerial.x = 0;
+            avgPointFSerial.y = 0;
+            for (PointS tPointFSerial : mAvailableTouchPointInScreen) {
+                avgPointFSerial.x += tPointFSerial.x;
+                avgPointFSerial.y += tPointFSerial.y;
             }
-            avgPointF.x /= AVAILABLE_TOUCH_LENGTH;
-            avgPointF.y /= AVAILABLE_TOUCH_LENGTH;
+            avgPointFSerial.x /= AVAILABLE_TOUCH_LENGTH;
+            avgPointFSerial.y /= AVAILABLE_TOUCH_LENGTH;
             if (mCallBack != null) {
-                mCallBack.onTouchPointInScreen(avgPointF);
+                mCallBack.onTouchPointInScreen(avgPointFSerial);
             }
         }
     }
 
-    private int calculationVertex(PointF touchPointF) {
-        int add = vertexUtil.add(touchPointF, collectIndex);
+    private int calculationVertex(PointS touchPointFSerial) {
+        int add = mVertexCollect.add(touchPointFSerial, collectIndex);
         switch (add) {
             case -1:
                 Tlog.i(TAG, " calculation vertex data ...");
@@ -232,25 +278,25 @@ public class Calibration implements Runnable {
             case 1:
                 collectIndex = -1;
                 if (mVertexFinish != null) {
-                    mVertexFinish.onCollectPointInWall(0, vertexUtil.getPointF(0));
+                    mVertexFinish.onCollectPointInWall(0, mVertexCollect.getPointS(0));
                 }
                 break;
             case 2:
                 collectIndex = -1;
                 if (mVertexFinish != null) {
-                    mVertexFinish.onCollectPointInWall(1, vertexUtil.getPointF(1));
+                    mVertexFinish.onCollectPointInWall(1, mVertexCollect.getPointS(1));
                 }
                 break;
             case 3:
                 collectIndex = -1;
                 if (mVertexFinish != null) {
-                    mVertexFinish.onCollectPointInWall(2, vertexUtil.getPointF(2));
+                    mVertexFinish.onCollectPointInWall(2, mVertexCollect.getPointS(2));
                 }
                 break;
             case 4:
                 collectIndex = -1;
                 if (mVertexFinish != null) {
-                    mVertexFinish.onCollectPointInWall(3, vertexUtil.getPointF(3));
+                    mVertexFinish.onCollectPointInWall(3, mVertexCollect.getPointS(3));
                 }
                 break;
         }
@@ -284,7 +330,7 @@ public class Calibration implements Runnable {
     }
 
     // 计算触摸点在墙上的xy
-    private void calculationTouchPoint(PointF touchPointF, int[] mAvailableIndexBuf,
+    private void calculationTouchPoint(PointS touchPointFSerial, int[] mAvailableIndexBuf,
                                        int availableSize, char[] mDistanceBuf) {
         float totalDegree = 0;
         float totalDistance = 0;
@@ -296,12 +342,12 @@ public class Calibration implements Runnable {
 
         float avgDegree = totalDegree / availableSize;
         float avgDistance = totalDistance / availableSize;
-        touchPointF.x = (float) (avgDistance * MathUtils.sin(avgDegree));
-        touchPointF.y = (float) (avgDistance * MathUtils.cos(avgDegree));
+        touchPointFSerial.x = (float) (avgDistance * MathUtils.sin(avgDegree));
+        touchPointFSerial.y = (float) (avgDistance * MathUtils.cos(avgDegree));
 
         Tlog.v(TAG, " totalDegree: " + totalDegree + " avgDegree:" + avgDegree);
         Tlog.v(TAG, " totalDistance: " + totalDistance + " avgDistance:" + avgDistance);
-        Tlog.v(TAG, " touchPoint: " + touchPointF.toString());
+        Tlog.v(TAG, " touchPoint: " + touchPointFSerial.toString());
 
     }
 
@@ -449,9 +495,9 @@ public class Calibration implements Runnable {
 
     public interface ICalibrationCallBack {
 
-        void onTouchPointInScreen(PointF mPointF);
+        void onTouchPointInScreen(PointS mPointFSerial);
 
-        void onTouchPointInWall(PointF pointF);
+        void onTouchPointInWall(PointS PointFSerial);
 
         void onWallBG(char[] buf);
 
@@ -468,16 +514,18 @@ public class Calibration implements Runnable {
     public interface IVertexFinish {
 
         // 校准单点
-        void onCollectPointInWall(int i, PointF mPointF);
+        void onCollectPointInWall(int i, PointS mPointFSerial);
 
         // 校准四点
-        void onCollectPointInWall(PointF[] mPointFs);
+        void onCollectPointInWall(PointS[] mPointFSerials);
 
-        void onCollectPointInScreen(PointF[] mPointF);
+        void onCollectPointInScreen(PointS[] mPointFSerial);
 
-        void onVirtualScreen(PointF[] mPointFs);
+        void onVirtualScreen(PointS[] mPointFSerials);
 
-        void onVirtualScreenRect(PointF[] mPointFs);
+        void onVirtualScreenRect(PointS[] mPointFSerials);
+
+        void showTxt(String msg);
 
     }
 

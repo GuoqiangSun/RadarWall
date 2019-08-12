@@ -31,9 +31,20 @@ public class JavaTest {
 
 //        count();
 
-        recalculation(10, 0, 30);
+//        recalculation(10, 0, 30);
 
+        cb();
+    }
 
+    private static void cb() {
+        double sqrt = Math.sqrt(1.2 * 1.2 + 1.3 * 1.3);
+        System.out.println("sqrt:" + sqrt);
+
+        sqrt = Math.sqrt(1.2 * 3 * 1.2 * 3 + 1.3 * 4 * 1.3 * 4);
+        System.out.println("sqrt:" + sqrt);
+
+        sqrt = sqrt / 5;
+        System.out.println("sqrt:" + sqrt);
     }
 
     private static void recalculation(float bx, float by, double d) {

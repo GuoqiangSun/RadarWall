@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 28
     defaultConfig {
-        applicationId "cn.com.startai.radarwall"
+        applicationId "cn.com.startai.radarwall.m"
         minSdkVersion 18
         targetSdkVersion 28
         versionCode 1
@@ -36,7 +36,7 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 
-    implementation 'cn.com.swain169:baselib:3.2.28'
+    implementation 'cn.com.swain169:baselib:3.2.29'
     implementation 'com.veken:chart_view:1.0.2'
     implementation 'com.github.Victory-Over:SuperChartView:v1.0.0'
 }

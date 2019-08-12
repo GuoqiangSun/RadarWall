@@ -1,5 +1,7 @@
 package cn.com.startai.radarwall.calibration;
 
+import java.io.Serializable;
+
 import cn.com.startai.radarwall.MainActivity;
 
 /**
@@ -7,7 +9,7 @@ import cn.com.startai.radarwall.MainActivity;
  * date 2019/7/30
  * desc
  */
-public class BackgroundData {
+public class BackgroundData implements Serializable {
 
     private final int maxNum = MainActivity.MAX_DISTANCE;
     private final int size = MainActivity.FRAME_DATA_SIZE;
@@ -33,7 +35,7 @@ public class BackgroundData {
         }
     }
 
-    private final int NO_COUNT = fps;
+    private final int NO_COUNT = fps / 2;
 
     public boolean setOneFrame(char[] chars) {
         if (++point <= NO_COUNT) { // 前面的不统计

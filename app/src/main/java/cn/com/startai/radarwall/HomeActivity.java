@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -12,15 +11,12 @@ import android.widget.Toast;
 import java.io.File;
 import java.util.concurrent.ExecutorService;
 
-import cn.com.startai.radarwall.calibration.CalibrationActivity;
 import cn.com.startai.radarwall.redview.RedViewActivity;
 import cn.com.startai.radarwall.utils.FileManager;
 import cn.com.swain.baselib.display.ScreenUtils;
-import cn.com.swain.baselib.log.TFlog;
 import cn.com.swain.baselib.log.Tlog;
 import cn.com.swain.baselib.log.logRecord.impl.LogRecordManager;
 import cn.com.swain.baselib.permission.PermissionGroup;
-import cn.com.swain.baselib.permission.PermissionHelper;
 import cn.com.swain.baselib.permission.PermissionRequest;
 import cn.com.swain.baselib.permission.PermissionSingleton;
 import cn.com.swain.baselib.util.WiFiUtil;
@@ -221,7 +217,7 @@ public class HomeActivity extends AppCompatActivity {
             Toast.makeText(getApplicationContext(), " please connect", Toast.LENGTH_SHORT).show();
             return;
         }
-        startActivity(new Intent(this, CalibrationActivity.class));
+        startActivity(new Intent(this, RedViewActivity.class));
     }
 
     public void saveLog(View view) {

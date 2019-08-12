@@ -14,7 +14,10 @@ import java.util.concurrent.ExecutorService;
 import cn.com.startai.radarwall.MainActivity;
 import cn.com.startai.radarwall.R;
 import cn.com.startai.radarwall.calibration.Calibration;
+import cn.com.startai.radarwall.calibration.CalibrationManager;
+import cn.com.swain.baselib.display.PointS;
 import cn.com.swain.baselib.display.ScreenUtils;
+import cn.com.swain.baselib.display.StatusBarUtil;
 import cn.com.swain.baselib.log.Tlog;
 
 /**
@@ -30,13 +33,12 @@ public class RedViewActivity extends AppCompatActivity {
     private MainActivity.IDataCallBack mDataCallBack;
     private MainActivity sensor;
 
-    private Calibration mCalibration;
-
     private boolean canCollect;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        StatusBarUtil.fullScreenHideStatusBar(getWindow(), false);
         setContentView(R.layout.activity_redview);
 
         sensor = MainActivity.getInstance();
@@ -60,108 +62,29 @@ public class RedViewActivity extends AppCompatActivity {
             @Override
             public void onPositionData(char[] buf, int size, int result) {
                 MainActivity.reserveBuf(buf);
-                mRedView.setPoints(result, buf, false);
-                if (mCalibration != null) {
-                    mCalibration.setPositionData(result, buf);
+                if (mRedView != null) {
+                    mRedView.setPoints(result, buf, false);
                 }
+                CalibrationManager.getInstance().setPositionData(result, buf);
             }
         };
 
         PointF screenWH19 = ScreenUtils.getScreenWH19(getApplicationContext());
         float ofx = screenWH19.x / 4f; // 4分之一 x
         float oey = screenWH19.y / 8f;// 8分之一 y
-        PointF A = new PointF(ofx, oey * 5);
-        PointF C = new PointF(ofx * 3, oey * 7);
-        PointF B = new PointF(A.x, C.y);
-        PointF D = new PointF(C.x, A.y);
-        PointF S = new PointF(screenWH19.x, screenWH19.y);
+        PointS A = new PointS(ofx, oey * 2);
+        PointS C = new PointS(ofx * 3, oey * 7);
+        PointS B = new PointS(A.x, C.y);
+        PointS D = new PointS(C.x, A.y);
+        PointS S = new PointS(screenWH19.x, screenWH19.y);
 
         mRedView.setVertex(A, B, C, D);
-        mCalibration = new Calibration(A, B, C, D, S);
-        mCalibration.setCalibrationCallBack(new Calibration.ICalibrationCallBack() {
-            @Override
-            public void onTouchPointInScreen(PointF mPointF) {
-                mRedView.setPointInScreen(mPointF);
-            }
 
-            @Override
-            public void onTouchPointInWall(PointF pointF) {
-                mRedView.setPointInWall(pointF);
-            }
-
-
-            @Override
-            public void onWallBG(char[] buf) {
-                canCollect = true;
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(getApplicationContext(),
-                                "背景收集完成",
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-
-            @Override
-            public void onWallBGDiff(int[] buf, int size) {
-                mRedView.bgDiff(buf, size);
-            }
-        });
-        mCalibration.setIVertexFinish(new Calibration.IVertexFinish() {
-            @Override
-            public void onCollectPointInWall(int i, PointF mPointF) {
-                final int show = i + 1;
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(getApplicationContext(),
-                                "第" + show + "个点收集完成",
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-                mRedView.setCollectPointInWall(i, mPointF);
-            }
-
-
-            @Override
-            public void onCollectPointInWall(PointF[] mPointFs) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(getApplicationContext(),
-                                "4个点收集完成",
-                                Toast.LENGTH_LONG).show();
-                    }
-                });
-            }
-
-            @Override
-            public void onVirtualScreen(PointF[] mPointFs) {
-                mRedView.setVirtualScreen(mPointFs);
-            }
-
-            @Override
-            public void onVirtualScreenRect(PointF[] mPointFs) {
-                mRedView.setVirtualScreenRect(mPointFs);
-            }
-
-            @Override
-            public void onCollectPointInScreen(PointF[] mPointF) {
-                mRedView.setCollectPointInScreen(mPointF);
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(getApplicationContext(),
-                                "校准点计算完成",
-                                Toast.LENGTH_LONG).show();
-                    }
-                });
-            }
-
-        });
-        mCalibration.start();
+        CalibrationManager.get(getApplicationContext());
+        CalibrationManager.getInstance().setCollectPoint(A, B, C, D, S);
+        CalibrationManager.getInstance().setCalibrationCallBack(mICalibrationCallBack);
+        CalibrationManager.getInstance().setIVertexFinish(mIVertexFinish);
+        CalibrationManager.getInstance().start();
 
     }
 
@@ -181,12 +104,10 @@ public class RedViewActivity extends AppCompatActivity {
         if (flag) {
             stop(null);
         }
-        mDataCallBack = null;
-
-        if (mCalibration != null) {
-            mCalibration.stop();
-            mCalibration = null;
-        }
+        CalibrationManager.getInstance().setCalibrationCallBack(null);
+        CalibrationManager.getInstance().setIVertexFinish(null);
+        CalibrationManager.getInstance().stop();
+        CalibrationManager.save(getApplicationContext());
     }
 
     @Override
@@ -200,12 +121,18 @@ public class RedViewActivity extends AppCompatActivity {
     private boolean flag;
 
     public void start(View view) {
+        if (flag) {
+            return;
+        }
         flag = true;
         sensor.setCallBack(mDataCallBack);
         sensor.alwaysAcquirePositionData();
     }
 
     public void stop(View view) {
+        if (!flag) {
+            return;
+        }
         flag = false;
         sensor.setCallBack(null);
         sensor.stopAlwaysAcquirePositionData();
@@ -228,9 +155,7 @@ public class RedViewActivity extends AppCompatActivity {
                 Tlog.v(TAG, " acquirePositionData result:" + result);
                 MainActivity.reserveBuf(chars);
                 mRedView.setPoints(result, chars, true);
-                if (mCalibration != null) {
-                    mCalibration.setPositionData(result, chars);
-                }
+                CalibrationManager.getInstance().setPositionData(result, chars);
             }
         });
     }
@@ -239,7 +164,7 @@ public class RedViewActivity extends AppCompatActivity {
 
     public void collect(View view) {
         int i = clickCollectTimes % 4;
-        boolean collect = collect(i+1);
+        boolean collect = collect(i + 1);
         if (collect) clickCollectTimes++;
     }
 
@@ -255,12 +180,113 @@ public class RedViewActivity extends AppCompatActivity {
         if ((toastTime + 3000) < l) {
             Toast.makeText(getApplicationContext(), "开始收集" + i + "点", Toast.LENGTH_SHORT).show();
             toastTime = l;
-            if (mCalibration != null) {
-                mCalibration.setCollectIndex(i);
-            }
+            CalibrationManager.getInstance().setCollectIndex(i);
             return true;
         }
         return false;
     }
+
+    private Calibration.IVertexFinish mIVertexFinish = new Calibration.IVertexFinish() {
+        @Override
+        public void onCollectPointInWall(int i, PointS mPointF) {
+            final int show = i + 1;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(getApplicationContext(),
+                            "第" + show + "个点收集完成",
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+            if (mRedView != null) {
+                mRedView.setCollectPointInWall(i, mPointF);
+            }
+        }
+
+
+        @Override
+        public void onCollectPointInWall(PointS[] mPointFs) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(getApplicationContext(),
+                            "4个点收集完成",
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+
+        @Override
+        public void onVirtualScreen(PointS[] mPointFs) {
+            if (mRedView != null) {
+                mRedView.setVirtualScreen(mPointFs);
+            }
+        }
+
+        @Override
+        public void onVirtualScreenRect(PointS[] mPointFs) {
+            if (mRedView != null) {
+                mRedView.setVirtualScreenRect(mPointFs);
+            }
+        }
+
+        @Override
+        public void showTxt(String msg) {
+            if (mRedView != null) {
+                mRedView.showTxt(msg);
+            }
+        }
+
+        @Override
+        public void onCollectPointInScreen(PointS[] mPointF) {
+            mRedView.setCollectPointInScreen(mPointF);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(getApplicationContext(),
+                            "校准点计算完成",
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+
+    };
+
+    private Calibration.ICalibrationCallBack mICalibrationCallBack = new Calibration.ICalibrationCallBack() {
+        @Override
+        public void onTouchPointInScreen(PointS mPointF) {
+            if (mRedView != null) {
+                mRedView.setPointInScreen(mPointF);
+            }
+        }
+
+        @Override
+        public void onTouchPointInWall(PointS pointF) {
+            if (mRedView != null) {
+                mRedView.setPointInWall(pointF);
+            }
+        }
+
+
+        @Override
+        public void onWallBG(char[] buf) {
+            canCollect = true;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(getApplicationContext(),
+                            "背景收集完成",
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        @Override
+        public void onWallBGDiff(int[] buf, int size) {
+            if (mRedView != null) {
+                mRedView.bgDiff(buf, size);
+            }
+        }
+    };
 
 }
