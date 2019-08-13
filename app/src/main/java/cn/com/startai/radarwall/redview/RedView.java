@@ -135,9 +135,15 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
     }
 
-    public void setCollectPointInWall(int i, PointS mPointFSerial) {
+    public void setCollectPointInWall(int i, PointS mPointS) {
         if (mDrawThread != null) {
-            mDrawThread.setCollectPointInWall(i, mPointFSerial);
+            mDrawThread.setCollectPointInWall(i, mPointS);
+        }
+    }
+
+    public void setCollectPointSInWall(PointS[] mPoints) {
+        if (mDrawThread != null) {
+            mDrawThread.setCollectPointSInWall(mPoints);
         }
     }
 
@@ -411,6 +417,9 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             Tlog.v(TAG, " DrawThread surfaceChanged() wdr:" + wdr + " hdr:" + hdr);
             Tlog.v(TAG, " DrawThread surfaceChanged() wxr:" + wxr + " hyr:" + hyr);
 
+            int[] locationInWindow = ScreenUtils.getLocationInWindow(RedView.this);
+            Tlog.v(TAG, " window :: x:" + locationInWindow[0] + " y:" + locationInWindow[1]
+                    + " w:" + locationInWindow[2] + " h:" + locationInWindow[3]);
 
             ScreenUtils.getLocationOnScreen(RedView.this, locationOnScreen);
             Tlog.v(TAG, " screen :: x:" + locationOnScreen[0] + " y:" + locationOnScreen[1]
@@ -420,14 +429,21 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             vertexB.set(B.x - locationOnScreen[0], B.y - locationOnScreen[1]);
             vertexC.set(C.x - locationOnScreen[0], C.y - locationOnScreen[1]);
             vertexD.set(D.x - locationOnScreen[0], D.y - locationOnScreen[1]);
-            Tlog.v(TAG, " vertexA::" + vertexA.toString());
-            Tlog.v(TAG, " vertexB::" + vertexB.toString());
-            Tlog.v(TAG, " vertexC::" + vertexC.toString());
-            Tlog.v(TAG, " vertexD::" + vertexD.toString());
 
-            int[] locationInWindow = ScreenUtils.getLocationInWindow(RedView.this);
-            Tlog.v(TAG, " window :: x:" + locationInWindow[0] + " y:" + locationInWindow[1]
-                    + " w:" + locationInWindow[2] + " h:" + locationInWindow[3]);
+            touchPointSInScreen.x = touchPointSInScreenOriginal.x - locationOnScreen[0];
+            touchPointSInScreen.y = touchPointSInScreenOriginal.y - locationOnScreen[1];
+
+            collectInScreen[0].x = collectInScreenOriginal[0].x - locationOnScreen[0];
+            collectInScreen[0].y = collectInScreenOriginal[0].y - locationOnScreen[1];
+
+            collectInScreen[1].x = collectInScreenOriginal[1].x - locationOnScreen[0];
+            collectInScreen[1].y = collectInScreenOriginal[1].y - locationOnScreen[1];
+
+            collectInScreen[2].x = collectInScreenOriginal[2].x - locationOnScreen[0];
+            collectInScreen[2].y = collectInScreenOriginal[2].y - locationOnScreen[1];
+
+            collectInScreen[3].x = collectInScreenOriginal[3].x - locationOnScreen[0];
+            collectInScreen[3].y = collectInScreenOriginal[3].y - locationOnScreen[1];
 
         }
 
@@ -526,10 +542,12 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         private final PointS touchPointSInScreen = new PointS(NOT_DRAW_XY, NOT_DRAW_XY);
+        private final PointS touchPointSInScreenOriginal = new PointS(NOT_DRAW_XY, NOT_DRAW_XY);
 
-        private void setPointInScreen(PointS mPointFSerial) {
-            touchPointSInScreen.x = mPointFSerial.x - locationOnScreen[0];
-            touchPointSInScreen.y = mPointFSerial.y - locationOnScreen[1];
+        private void setPointInScreen(PointS mPointS) {
+            touchPointSInScreenOriginal.set(mPointS);
+            touchPointSInScreen.x = mPointS.x - locationOnScreen[0];
+            touchPointSInScreen.y = mPointS.y - locationOnScreen[1];
             synchronized (syncObj) {
                 syncObj.notify();
             }
@@ -603,6 +621,15 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             collectVertexXY[(i % 4) * 2 + 1] = mPointFSerial.y * hyr + radarTop;
         }
 
+        public void setCollectPointSInWall(PointS[] mPoints) {
+            if (mPoints == null || mPoints.length <= 0) {
+                return;
+            }
+            for (int i = 0; i < mPoints.length; i++) {
+                setCollectPointInWall(i, mPoints[i]);
+            }
+        }
+
         private float[] virtualScreenRect = new float[]
                 {
                         NOT_DRAW_XY, NOT_DRAW_XY,
@@ -645,19 +672,30 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                 = new PointS[]{new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY),
                 new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY)};
 
-        private void setCollectPointInScreen(PointS[] mPointFSerial) {
-            if (mPointFSerial != null && mPointFSerial.length >= 4) {
-                collectInScreen[0].x = mPointFSerial[0].x - locationOnScreen[0];
-                collectInScreen[0].y = mPointFSerial[0].y - locationOnScreen[1];
 
-                collectInScreen[1].x = mPointFSerial[1].x - locationOnScreen[0];
-                collectInScreen[1].y = mPointFSerial[1].y - locationOnScreen[1];
+        // 墙上较准点在屏幕上
+        private final PointS[] collectInScreenOriginal
+                = new PointS[]{new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY),
+                new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY)};
 
-                collectInScreen[2].x = mPointFSerial[2].x - locationOnScreen[0];
-                collectInScreen[2].y = mPointFSerial[2].y - locationOnScreen[1];
+        private void setCollectPointInScreen(PointS[] mPointS) {
+            if (mPointS != null && mPointS.length >= 4) {
+                collectInScreen[0].x = mPointS[0].x - locationOnScreen[0];
+                collectInScreen[0].y = mPointS[0].y - locationOnScreen[1];
 
-                collectInScreen[3].x = mPointFSerial[3].x - locationOnScreen[0];
-                collectInScreen[3].y = mPointFSerial[3].y - locationOnScreen[1];
+                collectInScreen[1].x = mPointS[1].x - locationOnScreen[0];
+                collectInScreen[1].y = mPointS[1].y - locationOnScreen[1];
+
+                collectInScreen[2].x = mPointS[2].x - locationOnScreen[0];
+                collectInScreen[2].y = mPointS[2].y - locationOnScreen[1];
+
+                collectInScreen[3].x = mPointS[3].x - locationOnScreen[0];
+                collectInScreen[3].y = mPointS[3].y - locationOnScreen[1];
+
+                collectInScreenOriginal[0].set(mPointS[0]);
+                collectInScreenOriginal[1].set(mPointS[1]);
+                collectInScreenOriginal[2].set(mPointS[2]);
+                collectInScreenOriginal[3].set(mPointS[3]);
             }
         }
 

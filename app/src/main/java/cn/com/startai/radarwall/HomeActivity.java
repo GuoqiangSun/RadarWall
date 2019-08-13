@@ -137,11 +137,48 @@ public class HomeActivity extends AppCompatActivity {
                         : "Disconnected", Toast.LENGTH_SHORT).show();
     }
 
+    private boolean flag;
+
+    private final Runnable showToast = new Runnable() {
+        @Override
+        public void run() {
+            Toast.makeText(getApplicationContext(), "ERROR", Toast.LENGTH_SHORT).show();
+        }
+    };
+
+    public void alwaysReqData(View view) {
+        if (!flag) {
+            Toast.makeText(getApplicationContext(), " 开始请求数据", Toast.LENGTH_SHORT).show();
+            sensor.setCallBack(new MainActivity.IDataCallBack() {
+                private long showTimes;
+
+                @Override
+                public void onPositionData(char[] buf, int size, int result) {
+                    if (result != MainActivity.RC_OK) {
+                        Tlog.e(TAG, " onPositionData:" + result);
+                        long l = System.currentTimeMillis();
+                        if (Math.abs(showTimes - l) > 3000) {
+                            runOnUiThread(showToast);
+                            showTimes = l;
+                        }
+                    }
+                }
+            });
+            sensor.alwaysAcquirePositionData();
+        } else {
+            Toast.makeText(getApplicationContext(), " 停止请求数据", Toast.LENGTH_SHORT).show();
+            sensor.stopAlwaysAcquirePositionData();
+            sensor.setCallBack(null);
+        }
+        flag = !flag;
+    }
+
     public void reqData(View view) {
         if (connect != MainActivity.RC_OK) {
             Toast.makeText(getApplicationContext(), " please connect", Toast.LENGTH_SHORT).show();
             return;
         }
+
         if (executorService == null) {
             return;
         }
@@ -280,4 +317,6 @@ public class HomeActivity extends AppCompatActivity {
     public void toastclick(View view) {
         Toast.makeText(getApplicationContext(), "点击了toastButton", Toast.LENGTH_SHORT).show();
     }
+
+
 }

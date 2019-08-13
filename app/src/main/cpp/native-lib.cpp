@@ -221,7 +221,7 @@ void *always(void *arg) {
     lt602::uint16 data[320];
     int length = 320;
     lt602::ResultCode rc;
-    const int hz = 20;
+    const int hz = 70;
     useconds_t sleep = 1000 / hz;
 
     int frame = 0;

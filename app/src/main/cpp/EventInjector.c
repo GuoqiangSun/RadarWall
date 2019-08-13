@@ -170,9 +170,10 @@ static int open_device(int index)
     
 	pDevs[index].ufds.fd = fd;
 	ufds[index].fd = fd;
-	
+	int s =sizeof(name)-1;
     name[sizeof(name) - 1] = '\0';
-    if(ioctl(fd, EVIOCGNAME(sizeof(name) - 1), &name) < 1) {
+
+    if(ioctl(fd, s, &name) < 1) {
         debug("could not get device name for %s, %s", device, strerror(errno));
         name[0] = '\0';
     }

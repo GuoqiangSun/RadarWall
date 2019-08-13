@@ -27,10 +27,21 @@ public class VertexCollect implements Serializable {
     private PointS[] mPointS4;
     private int PointSDIndex;
 
-    private final int MAX_SIZE = 70; // 最小不的低于70
     private final int REMOVE = 10; // 移除 前后的个数
 
 
+    // 最小不的低于70
+    // REMOVE*4 表示统计前后的10个点不要，排序后的前后十个点不要
+    private final int MAX_SIZE = 70 + REMOVE * 4;
+
+    /**
+     * 四个顶点的数组
+     * <p>
+     * 0 ==A
+     * 1 ==B
+     * 2 ==C
+     * 3 ==D
+     */
     private PointS[] PointSS = new PointS[4];
 
     public PointS[] getPointSS() {
@@ -167,9 +178,9 @@ public class VertexCollect implements Serializable {
 
     public void calculationABCD() {
 
-        Tlog.v(TAG, " PointFSerial1 " + PointStoString());
-        MathUtils.sortABCD(PointSS);
-        Tlog.v(TAG, "reSort area :" + PointStoString());
+        Tlog.v(TAG, " sortABCDByMiddle  " + PointStoString());
+        MathUtils.sortABCDByMiddle(PointSS);
+        Tlog.v(TAG, " sortABCDByMiddle :" + PointStoString());
 
     }
 
@@ -181,8 +192,8 @@ public class VertexCollect implements Serializable {
         float maxY = Float.MIN_VALUE;
 
         int availableSize = MAX_SIZE - REMOVE * 2;
-        PointS[] tmp = new PointS[availableSize]; // 去除前后十个点
-
+        PointS[] tmp = new PointS[availableSize];
+        // 去除前后十个点
         System.arraycopy(mPointSs, REMOVE, tmp, 0, availableSize);
 
         Arrays.sort(tmp, new Comparator<PointS>() {
@@ -214,30 +225,31 @@ public class VertexCollect implements Serializable {
     }
 
     public void addA(PointS mPoints) {
-        mPointS1[PointSAIndex % MAX_SIZE] = new PointS(mPoints.x, mPoints.y);
+        mPointS1[PointSAIndex % MAX_SIZE] = new PointS(mPoints);
         PointSAIndex++;
     }
 
     public void addB(PointS mPoints) {
-        mPointS2[PointSBIndex % MAX_SIZE] = new PointS(mPoints.x, mPoints.y);
+        mPointS2[PointSBIndex % MAX_SIZE] = new PointS(mPoints);
         PointSBIndex++;
     }
 
     public void addC(PointS mPoints) {
-        mPointS3[PointSCIndex % MAX_SIZE] = new PointS(mPoints.x, mPoints.y);
+        mPointS3[PointSCIndex % MAX_SIZE] = new PointS(mPoints);
         PointSCIndex++;
     }
 
     public void addD(PointS mPoints) {
-        mPointS4[PointSDIndex % MAX_SIZE] = new PointS(mPoints.x, mPoints.y);
+        mPointS4[PointSDIndex % MAX_SIZE] = new PointS(mPoints);
         PointSDIndex++;
     }
 
     public String PointStoString() {
-        return " A  " + PointSS[0].toString()
+        return "[ A  " + PointSS[0].toString()
                 + "B  " + PointSS[1].toString()
                 + "C  " + PointSS[2].toString()
-                + "D  " + PointSS[3].toString();
+                + "D  " + PointSS[3].toString()
+                + " ]";
     }
 
 

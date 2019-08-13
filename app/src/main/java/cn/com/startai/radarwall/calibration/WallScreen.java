@@ -15,20 +15,16 @@ import cn.com.swain.baselib.log.Tlog;
  * author Guoqiang_Sun
  * date 2019/8/5
  * desc
+ * * |--x-- a      d
+ * * y
+ * * y
+ * * |--x-- b      c
  */
+
 public class WallScreen implements Serializable {
 
     private String TAG_SIN = "wallScreen";
 
-    /**
-     * |
-     * Y
-     * |
-     * --x-- a      d
-     * <p>
-     * <p>
-     * --x-- b      c
-     */
     // 手机屏幕的校准点
     private PointS mPhonePointA, // a 点
             mPhonePointB, // b 点
@@ -38,16 +34,16 @@ public class WallScreen implements Serializable {
     private Screen mPhoneScreen, // 手机屏幕
             mPhoneCollectScreen;// 手机校准屏幕
 
-    // 手机屏幕在墙上的各点
+    // 手机校准屏幕在墙上的各点
     private PointS mWallPointA, // a 点
             mWallPointB, // b 点
             mWallPointC,// c 点
             mWallPointD,// d 点
-            mPointWallScreenA;//墙上的屏幕A
+            mWallScreenPointA;//墙上的屏幕A
 
     private PointS mWallPhoneScreenRate; // 墙上屏幕 比 手机屏幕的比例
 
-    private Screen mWallScreen,
+    private Screen mWallScreen,//墙上手机屏幕
             mWallCollectScreen; //墙上较准屏幕
 
     public WallScreen() {
@@ -59,8 +55,8 @@ public class WallScreen implements Serializable {
                       PointS mPointC,
                       PointS mPointD,
                       PointS mPhoneScreen) {
-        set(mPointA, mPointB, mPointC, mPointD, mPhoneScreen);
         init();
+        set(mPointA, mPointB, mPointC, mPointD, mPhoneScreen);
     }
 
     public void set(PointS mPointA,
@@ -68,13 +64,13 @@ public class WallScreen implements Serializable {
                     PointS mPointC,
                     PointS mPointD,
                     PointS mPhoneScreen) {
-        this.mPhonePointA = mPointA;
-        this.mPhonePointB = mPointB;
-        this.mPhonePointC = mPointC;
-        this.mPhonePointD = mPointD;
+        this.mPhonePointA.set(mPointA);
+        this.mPhonePointB.set(mPointB);
+        this.mPhonePointC.set(mPointC);
+        this.mPhonePointD.set(mPointD);
 
-        this.mPhoneScreen = new Screen(mPhoneScreen);
-        this.mPhoneCollectScreen = new Screen();
+        this.mPhoneScreen.set(mPhoneScreen);
+
         this.mPhoneCollectScreen.width = Math.abs(mPhonePointD.x - mPhonePointA.x);
         this.mPhoneCollectScreen.height = Math.abs(mPhonePointB.y - mPhonePointA.y);
 
@@ -86,11 +82,20 @@ public class WallScreen implements Serializable {
     }
 
     private void init() {
+
+        this.mPhonePointA = new PointS();
+        this.mPhonePointB = new PointS();
+        this.mPhonePointC = new PointS();
+        this.mPhonePointD = new PointS();
+
+        this.mPhoneScreen = new Screen();
+        this.mPhoneCollectScreen = new Screen();
+
         this.mWallPointA = new PointS();
         this.mWallPointB = new PointS();
         this.mWallPointC = new PointS();
         this.mWallPointD = new PointS();
-        this.mPointWallScreenA = new PointS();
+        this.mWallScreenPointA = new PointS();
 
         this.mWallScreen = new Screen();
         this.mWallCollectScreen = new Screen();
@@ -163,53 +168,73 @@ public class WallScreen implements Serializable {
         angleAC = (angleAD + angleAB) / 2;
 
         PointS zPointF = new PointS(0, 0);
-//        float sqrt = (mWallPhoneScreenRate.x + mWallPhoneScreenRate.y) / 2;
 
-        PointS sqrt = this.mWallPhoneScreenRate;
-        float[] floata = calculationStart(zPointF, sqrt, mPhonePointA, mWallPointA, angleAC);
-        float[] floatb = calculationStart(zPointF, sqrt, mPhonePointB, mWallPointB, angleAC);
-        float[] floatc = calculationStart(zPointF, sqrt, mPhonePointC, mWallPointC, angleAC);
-        float[] floatd = calculationStart(zPointF, sqrt, mPhonePointD, mWallPointD, angleAC);
-        mPointWallScreenA.x = (floata[0] + floatb[0] + floatc[0] + floatd[0]) / 4;
-        mPointWallScreenA.y = (floata[1] + floatb[1] + floatc[1] + floatd[1]) / 4;
-        msg = "a:" + (int) floata[0] + (int) floata[1] +
-                "b:" + (int) floatb[0] + (int) floatb[1] +
-                "c:" + (int) floatc[0] + (int) floatc[1] +
-                "d:" + (int) floatd[0] + (int) floatd[1];
+        float[] floata = calculationStart(zPointF, mWallPhoneScreenRate, mPhonePointA, mWallPointA, angleAC);
+        float[] floatb = calculationStart(zPointF, mWallPhoneScreenRate, mPhonePointB, mWallPointB, angleAC);
+        float[] floatc = calculationStart(zPointF, mWallPhoneScreenRate, mPhonePointC, mWallPointC, angleAC);
+        float[] floatd = calculationStart(zPointF, mWallPhoneScreenRate, mPhonePointD, mWallPointD, angleAC);
+        mWallScreenPointA.x = (floata[0] + floatb[0] + floatc[0] + floatd[0]) / 4 * 0.5f;
+        mWallScreenPointA.y = (floata[1] + floatb[1] + floatc[1] + floatd[1]) / 4 * 0.5f;
+        msg = "a:" + (int) floata[0] + "-" + (int) floata[1] +
+                "b:" + (int) floatb[0] + "-" + (int) floatb[1] +
+                "c:" + (int) floatc[0] + "-" + (int) floatc[1] +
+                "d:" + (int) floatd[0] + "-" + (int) floatd[1];
+
+        float[] floata2 = calculationStart2(zPointF, mWallPhoneScreenRate, mPhonePointA, mWallPointA, angleAC);
+        float[] floatb2 = calculationStart2(zPointF, mWallPhoneScreenRate, mPhonePointB, mWallPointB, angleAC);
+        float[] floatc2 = calculationStart2(zPointF, mWallPhoneScreenRate, mPhonePointC, mWallPointC, angleAC);
+        float[] floatd2 = calculationStart2(zPointF, mWallPhoneScreenRate, mPhonePointD, mWallPointD, angleAC);
+        mWallScreenPointA.x += (floata2[0] + floatb2[0] + floatc2[0] + floatd2[0]) / 4 * 0.5f;
+        mWallScreenPointA.y += (floata2[1] + floatb2[1] + floatc2[1] + floatd2[1]) / 4 * 0.5f;
+
 
         mWidthFunction.calculationLinearFunction(mWallPointA, mWallPointD);
         float kW = mWidthFunction.k;
         mWidthFunction.calculationLinearFunction(mWallPointB, mWallPointC);
         kW += mWidthFunction.k;
-        mWidthFunction.calculationLinearFunction(kW / 2, mPointWallScreenA);
+        mWidthFunction.calculationLinearFunction(kW / 2, mWallScreenPointA);
 
         mHeightFunction.calculationLinearFunction(mWallPointA, mWallPointB);
         float kH = mHeightFunction.k;
         mHeightFunction.calculationLinearFunction(mWallPointD, mWallPointC);
         kH += mHeightFunction.k;
-        mHeightFunction.calculationLinearFunction(kH / 2, mPointWallScreenA);
+        mHeightFunction.calculationLinearFunction(kH / 2, mWallScreenPointA);
 
         pWidthFunction.setK(mWidthFunction.k);
         pHeightFunction.setK(mHeightFunction.k);
     }
 
     // 已知边长 ，角度，结束点的坐标，求起点的xy
-    private float[] calculationStart(PointS zPointF, PointS sqrt, PointS phonePoint, PointS wallPoint, float mInclinationAngle) {
+    private float[] calculationStart(PointS zPointF, PointS rate, PointS phonePoint, PointS wallPoint, float mInclinationAngle) {
+        PointS n = new PointS(phonePoint.x * rate.x, phonePoint.y * rate.y);
+        float bevel = (float) MathUtils.calculationBevel(zPointF, n);
+        // 屏幕原点到校准点的夹角
+        float atan = (float) MathUtils.atan(phonePoint.x / phonePoint.y);
+        return calculationStart((atan + mInclinationAngle), bevel, wallPoint);
+    }
+
+    public static float[] calculationStart(float mAngle, float bevel, PointS endPoint) {
+        float[] xy = new float[2];
+        xy[0] = (float) (endPoint.x - MathUtils.sin(mAngle) * bevel);
+        xy[1] = (float) (endPoint.y - MathUtils.cos(mAngle) * bevel);
+        return xy;
+    }
+
+    // 已知边长 ，角度，结束点的坐标，求起点的xy
+    private float[] calculationStart2(PointS zPointF, PointS sqrt, PointS phonePoint, PointS wallPoint, float mInclinationAngle) {
 //        float bevel = (float) (MathUtils.calculationBevel(zPointF, phonePoint) * sqrt);
         PointS n = new PointS(phonePoint.x * sqrt.x, phonePoint.y * sqrt.y);
         float bevel = (float) MathUtils.calculationBevel(zPointF, n);
         // 屏幕原点到校准点的夹角
         float atan = (float) MathUtils.atan(phonePoint.y / phonePoint.x);
-        return calculationStart((atan - mInclinationAngle), bevel, wallPoint);
+        return calculationStart2((atan - mInclinationAngle), bevel, wallPoint);
     }
 
     // 已知 结束点,角度 和斜边边长 ,求开始点
-    private float[] calculationStart(float mAngle, float bevel, PointS endPoint) {
+    private float[] calculationStart2(float mAngle, float bevel, PointS endPoint) {
         float[] xy = new float[2];
-        double vY = MathUtils.sin(mAngle) * bevel;
-        double vX = MathUtils.cos(mAngle) * bevel;
-        xy[0] = (float) (endPoint.x - vX);
-        xy[1] = (float) (endPoint.y - vY);
+        xy[0] = (float) (endPoint.x - MathUtils.cos(mAngle) * bevel);
+        xy[1] = (float) (endPoint.y - MathUtils.sin(mAngle) * bevel);
         return xy;
     }
 
@@ -222,13 +247,13 @@ public class WallScreen implements Serializable {
     // 墙上的屏幕点
     public PointS[] calculationVirtualScreenRect() {
 
-        pointFsVirtualScreenRect[0].set(mPointWallScreenA);
-        pointFsVirtualScreenRect[1].set(mPointWallScreenA.x,
-                mPointWallScreenA.y + mWallScreen.height);
-        pointFsVirtualScreenRect[2].set(mPointWallScreenA.x + mWallScreen.width,
-                mPointWallScreenA.y + mWallScreen.height);
-        pointFsVirtualScreenRect[3].set(mPointWallScreenA.x + mWallScreen.width,
-                mPointWallScreenA.y);
+        pointFsVirtualScreenRect[0].set(mWallScreenPointA);
+        pointFsVirtualScreenRect[1].set(mWallScreenPointA.x,
+                mWallScreenPointA.y + mWallScreen.height);
+        pointFsVirtualScreenRect[2].set(mWallScreenPointA.x + mWallScreen.width,
+                mWallScreenPointA.y + mWallScreen.height);
+        pointFsVirtualScreenRect[3].set(mWallScreenPointA.x + mWallScreen.width,
+                mWallScreenPointA.y);
 
         return pointFsVirtualScreenRect;
     }
@@ -237,10 +262,10 @@ public class WallScreen implements Serializable {
             new PointS(), new PointS()};
 
     public PointS[] calculationVirtualScreen() {
-        mVirtualScreen[0].set(mPointWallScreenA);
+        mVirtualScreen[0].set(mWallScreenPointA);
 
         PointS A = new PointS();
-        A.set(mPointWallScreenA.x, -mPointWallScreenA.y);
+        A.set(mWallScreenPointA.x, -mWallScreenPointA.y);
 
         PointS tmpPointF = new PointS();
 
@@ -289,6 +314,10 @@ public class WallScreen implements Serializable {
         uv[6] = mPhonePointD.x - pointFsVertexInScreen[3].x;
         uv[7] = mPhonePointD.y - pointFsVertexInScreen[3].y;
 
+        for (int i = 0; i < uv.length; i++) {
+            uv[i] /= 2;
+        }
+
         middlePointF.x = ((pointFsVertexInScreen[3].x - pointFsVertexInScreen[0].x)
                 + (pointFsVertexInScreen[2].x - pointFsVertexInScreen[1].x))
                 / 2 + pointFsVertexInScreen[0].x;
@@ -296,6 +325,12 @@ public class WallScreen implements Serializable {
         middlePointF.y = ((pointFsVertexInScreen[1].y - pointFsVertexInScreen[0].y)
                 + (pointFsVertexInScreen[2].y - pointFsVertexInScreen[3].y))
                 / 2 + pointFsVertexInScreen[0].y;
+
+        // 计算偏差向量后再重新计算一次
+        calculationInScreen(mWallPointA, pointFsVertexInScreen[0]);
+        calculationInScreen(mWallPointB, pointFsVertexInScreen[1]);
+        calculationInScreen(mWallPointC, pointFsVertexInScreen[2]);
+        calculationInScreen(mWallPointD, pointFsVertexInScreen[3]);
 
         Tlog.v(TAG_SIN, " aa: " + pointFsVertexInScreen[0].toString());
         Tlog.v(TAG_SIN, " bb: " + pointFsVertexInScreen[1].toString());
@@ -313,20 +348,20 @@ public class WallScreen implements Serializable {
 
         pHeightFunction.calculationLinearFunction(wallP);
         mWidthFunction.intersection(pHeightFunction, this.intersection);
-        double bevelX = MathUtils.calculationBevel(mPointWallScreenA, intersection);
+        double bevelX = MathUtils.calculationBevel(mWallScreenPointA, intersection);
         screenP.x = (float) (bevelX / mWallScreen.width * mPhoneScreen.width);
 
         pWidthFunction.calculationLinearFunction(wallP);
         mHeightFunction.intersection(pWidthFunction, this.intersection);
-        double bevelY = MathUtils.calculationBevel(mPointWallScreenA, intersection);
+        double bevelY = MathUtils.calculationBevel(mWallScreenPointA, intersection);
         screenP.y = (float) (bevelY / mWallScreen.height * mPhoneScreen.height);
 
-//        c(screenP);
+        scale(screenP);
     }
 
     private final int limit = 10;
 
-    private void c(PointF screenP) {
+    private void scale(PointS screenP) {
         if (screenP.x < (middlePointF.x - limit) && screenP.y < (middlePointF.y - limit)) {
             screenP.x += uv[0];
             screenP.y += uv[1];

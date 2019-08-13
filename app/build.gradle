@@ -6,8 +6,8 @@ android {
         applicationId "cn.com.startai.radarwall.m"
         minSdkVersion 18
         targetSdkVersion 28
-        versionCode 1
-        versionName "1.0"
+        versionCode 8
+        versionName "8.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
@@ -36,7 +36,7 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 
-    implementation 'cn.com.swain169:baselib:3.2.29'
+    implementation 'cn.com.swain169:baselib:3.2.30'
     implementation 'com.veken:chart_view:1.0.2'
     implementation 'com.github.Victory-Over:SuperChartView:v1.0.0'
 }

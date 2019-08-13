@@ -66,6 +66,12 @@
             android:onClick="reqData"
             android:text="请求数据" />
 
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="alwaysReqData"
+            android:text="一直请求" />
+
     </LinearLayout>
 
     <LinearLayout
@@ -96,18 +102,21 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:orientation="horizontal">
+
         <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:onClick="saveLog"
             android:text="保存日志"
             android:textAllCaps="false" />
+
         <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:onClick="inputTab"
             android:text="tap"
             android:textAllCaps="false" />
+
         <Button
             android:id="@+id/toast_btn"
             android:layout_width="wrap_content"
