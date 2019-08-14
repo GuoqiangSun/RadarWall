@@ -7,6 +7,8 @@ lt602::Sensor sensor;
 jobject globalObj = nullptr;
 JavaVM *mVm = nullptr;
 jmethodID callBackId = nullptr;
+jmethodID callBackCharBufferId = nullptr;
+unsigned char *pShortBuffer = nullptr;
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 
@@ -22,15 +24,24 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     return JNI_VERSION_1_4;
 }
 
-
 void GetOneFrame(lt602::ResultCode rc, lt602::uint16 *data, int size, JNIEnv *evn) {
 
 //	TLOGV( " getOneFrame size : %d ", size);
 
-    jcharArray array = evn->NewCharArray(size);
-    evn->SetCharArrayRegion(array, 0, size, data);
-    evn->CallVoidMethod(globalObj, callBackId, array, size, rc);
-    evn->DeleteLocalRef(array);
+    if (callBackCharBufferId != nullptr) {
+        int i = 0;
+        for (i = 0; i < size; ++i) {
+            pShortBuffer[i * 2] = (unsigned char) ((data[i] >> 8) & 0xFF);
+            pShortBuffer[i * 2 + 1] = (unsigned char) data[i];
+        }
+        evn->CallVoidMethod(globalObj, callBackCharBufferId, size, rc);
+
+    } else {
+        jcharArray array = evn->NewCharArray(size);
+        evn->SetCharArrayRegion(array, 0, size, data);
+        evn->CallVoidMethod(globalObj, callBackId, array, size, rc);
+        evn->DeleteLocalRef(array);
+    }
 
 //    jbyteArray array = evn->NewByteArray( size);
 //    evn->SetByteArrayRegion( array, 0, size, data);
@@ -40,18 +51,20 @@ void GetOneFrame(lt602::ResultCode rc, lt602::uint16 *data, int size, JNIEnv *ev
 }
 
 
-extern "C" JNIEXPORT jstring JNICALL
-Java_cn_com_startai_radarwall_MainActivity_stringFromJNI(
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_cn_com_startai_radarwall_RadarSensor_stringFromJNI(
         JNIEnv *env,
         jobject /* this */) {
     std::string hello = "Hello from C++";
     return env->NewStringUTF(hello.c_str());
 }extern "C"
 JNIEXPORT jint JNICALL
-Java_cn_com_startai_radarwall_MainActivity_Initialize(JNIEnv *env, jobject instance) {
+Java_cn_com_startai_radarwall_RadarSensor_Initialize(JNIEnv *env, jobject instance,
+                                                     jobject allocate) {
 
     // TODO
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_Initialize ");
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_Initialize ");
     TLOGV(" %d %d %d %d %d %d %d %d %d %d", lt602::RC_FAILED, lt602::RC_OK,
           lt602::RC_INVALID_ARGUMENT, lt602::RC_NOT_CONNECTED,
           lt602::RC_ALREADY_CONNECTED, lt602::RC_IN_PROGRESS, lt602::RC_COMMUNICATION_FAILED,
@@ -61,32 +74,56 @@ Java_cn_com_startai_radarwall_MainActivity_Initialize(JNIEnv *env, jobject insta
         globalObj = env->NewGlobalRef(instance);
     }
 
+    jclass cls = env->GetObjectClass(instance);
+
     if (nullptr == callBackId) {
-        jclass cls = env->GetObjectClass(instance);
         callBackId = env->GetMethodID(cls, "callBack", "([CII)V");
-        TLOGD("GetMethodID success !");
+        TLOGD("callBack success !");
     }
+
+    if (nullptr == callBackCharBufferId) {
+        callBackCharBufferId = env->GetMethodID(cls, "callBackCharBuffer", "(II)V");
+    }
+    if (callBackCharBufferId != nullptr) {
+        TLOGD("callBackCharBuffer success !");
+    } else {
+        TLOGD("callBackCharBuffer fail !");
+    }
+
+    pShortBuffer = (unsigned char *) env->GetDirectBufferAddress(allocate);
+    if (pShortBuffer != nullptr) {
+        TLOGE("GetDirectBufferAddress  success !");
+    } else {
+        TLOGE("GetDirectBufferAddress  fail !");
+    }
+
 
     return lt602::RC_OK;
 }
 extern "C"
 JNIEXPORT void JNICALL
-Java_cn_com_startai_radarwall_MainActivity_Uninitialize(JNIEnv *env, jobject instance) {
+Java_cn_com_startai_radarwall_RadarSensor_Uninitialize(JNIEnv *env, jobject instance) {
 
     // TODO
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_Uninitialize ");
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_Uninitialize ");
     if (nullptr != globalObj) {
         env->DeleteGlobalRef(globalObj);
     }
     globalObj = nullptr;
+    pShortBuffer = nullptr;
+    callBackId = nullptr;
+    callBackCharBufferId = nullptr;
 }
 extern "C"
 JNIEXPORT jint JNICALL
-Java_cn_com_startai_radarwall_MainActivity_connect(JNIEnv *env, jobject instance, jstring ip_,
-                                                   jint port) {
+Java_cn_com_startai_radarwall_RadarSensor_connect__Ljava_lang_String_2I(JNIEnv *env,
+                                                                        jobject instance,
+                                                                        jstring ip_,
+                                                                        jint port) {
     const char *ip = env->GetStringUTFChars(ip_, nullptr);
 
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_connect %s:%d", ip, port);
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_connect__Ljava_lang_String_2I %s:%d", ip,
+          port);
 
     lt602::ResultCode mResultCode = sensor.connect(ip, port);
     TLOGD(" sensor.connect %d", mResultCode);
@@ -96,11 +133,11 @@ Java_cn_com_startai_radarwall_MainActivity_connect(JNIEnv *env, jobject instance
     return mResultCode;
 }extern "C"
 JNIEXPORT jint JNICALL
-Java_cn_com_startai_radarwall_MainActivity_connect__Ljava_lang_String_2ILjava_lang_String_2I(
+Java_cn_com_startai_radarwall_RadarSensor_connect__Ljava_lang_String_2ILjava_lang_String_2I(
         JNIEnv *env, jobject instance, jstring ip_, jint port, jstring remoteIp_, jint remotePort) {
     const char *ip = env->GetStringUTFChars(ip_, 0);
     const char *remoteIp = env->GetStringUTFChars(remoteIp_, 0);
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_connect__Ljava_lang_String_2ILjava_lang_String_2I %s %d %s %d",
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_connect__Ljava_lang_String_2ILjava_lang_String_2I %s %d %s %d",
           ip, port, remoteIp, remotePort);
     // TODO
     lt602::ResultCode rc = sensor.connect(ip, port, remoteIp, remotePort);
@@ -111,26 +148,26 @@ Java_cn_com_startai_radarwall_MainActivity_connect__Ljava_lang_String_2ILjava_la
 }
 extern "C"
 JNIEXPORT void JNICALL
-Java_cn_com_startai_radarwall_MainActivity_disconnect(JNIEnv *env, jobject instance) {
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_disconnect  ");
+Java_cn_com_startai_radarwall_RadarSensor_disconnect(JNIEnv *env, jobject instance) {
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_disconnect  ");
     // TODO
     sensor.disconnect();
 }extern "C"
 JNIEXPORT jint JNICALL
-Java_cn_com_startai_radarwall_MainActivity_setIntegrationTime(JNIEnv *env, jobject instance,
-                                                              jint time) {
+Java_cn_com_startai_radarwall_RadarSensor_setIntegrationTime(JNIEnv *env, jobject instance,
+                                                             jint time) {
 
     // TODO
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_setIntegrationTime %d", time);
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_setIntegrationTime %d", time);
     return sensor.setIntegrationTime(time);
 
 }
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_cn_com_startai_radarwall_MainActivity_setTwiceIntegrationTime(JNIEnv *env, jobject instance,
-                                                                   jint time1, jint time2) {
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_setTwiceIntegrationTime %d ,%d", time1,
+Java_cn_com_startai_radarwall_RadarSensor_setTwiceIntegrationTime(JNIEnv *env, jobject instance,
+                                                                  jint time1, jint time2) {
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_setTwiceIntegrationTime %d ,%d", time1,
           time2);
     // TODO
     return sensor.setTwiceIntegrationTime(time1, time2);
@@ -138,26 +175,26 @@ Java_cn_com_startai_radarwall_MainActivity_setTwiceIntegrationTime(JNIEnv *env, 
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_cn_com_startai_radarwall_MainActivity_setLD(JNIEnv *env, jobject instance, jint gear) {
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_setLD  %d", gear);
+Java_cn_com_startai_radarwall_RadarSensor_setLD(JNIEnv *env, jobject instance, jint gear) {
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_setLD  %d", gear);
     // TODO
     return sensor.setLD(gear);
 }extern "C"
 JNIEXPORT jboolean JNICALL
-Java_cn_com_startai_radarwall_MainActivity_isConnected(JNIEnv *env, jobject instance) {
+Java_cn_com_startai_radarwall_RadarSensor_isConnected(JNIEnv *env, jobject instance) {
 
     // TODO
     bool con = sensor.isConnected();
     return static_cast<jboolean>(con);
 }extern "C"
 JNIEXPORT jintArray JNICALL
-Java_cn_com_startai_radarwall_MainActivity_acquirePositionData(JNIEnv *env, jobject instance) {
+Java_cn_com_startai_radarwall_RadarSensor_acquirePositionData(JNIEnv *env, jobject instance) {
 
     // TODO
     int length = 320;
     lt602::uint16 data[length];
     lt602::ResultCode rc = sensor.acquireDistanceData(data, &length);
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_acquirePositionData  %d", rc);
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_acquirePositionData  %d", rc);
     int frame = 0;
     if (rc == lt602::RC_OK) {
         TLOGE("RC_OK %d: ", frame);
@@ -180,12 +217,13 @@ Java_cn_com_startai_radarwall_MainActivity_acquirePositionData(JNIEnv *env, jobj
 //    free(buf);
     return array;
 }
-extern "C" JNIEXPORT jint JNICALL
-Java_cn_com_startai_radarwall_MainActivity_acquirePositionDataArray(JNIEnv *env, jobject instance,
-                                                                    jcharArray chars_,
-                                                                    jint length) {
+extern "C"
+JNIEXPORT jint JNICALL
+Java_cn_com_startai_radarwall_RadarSensor_acquirePositionDataArray(JNIEnv *env, jobject instance,
+                                                                   jcharArray chars_,
+                                                                   jint length) {
     jchar *data = env->GetCharArrayElements(chars_, nullptr);
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_acquirePositionDataArray  %d", length);
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_acquirePositionDataArray  %d", length);
     // TODO
     lt602::ResultCode rc;
     rc = sensor.acquireDistanceData(data, &length);
@@ -243,9 +281,10 @@ void *always(void *arg) {
 
 pthread_t mMeasureThread;
 
-extern "C" JNIEXPORT void JNICALL
-Java_cn_com_startai_radarwall_MainActivity_alwaysAcquirePositionData(JNIEnv *env,
-                                                                     jobject instance) {
+extern "C"
+JNIEXPORT void JNICALL
+Java_cn_com_startai_radarwall_RadarSensor_alwaysAcquirePositionData(JNIEnv *env,
+                                                                    jobject instance) {
     // TODO
 
     if (flag == 1) {
@@ -254,16 +293,16 @@ Java_cn_com_startai_radarwall_MainActivity_alwaysAcquirePositionData(JNIEnv *env
 
     flag = 1;
     int mMeasureThreadHandle = pthread_create(&mMeasureThread, nullptr, always, nullptr);
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_alwaysAcquirePositionData  %d",
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_alwaysAcquirePositionData  %d",
           mMeasureThreadHandle);
 
 }extern "C"
 JNIEXPORT void JNICALL
-Java_cn_com_startai_radarwall_MainActivity_stopAlwaysAcquirePositionData(JNIEnv *env,
-                                                                         jobject instance) {
+Java_cn_com_startai_radarwall_RadarSensor_stopAlwaysAcquirePositionData(JNIEnv *env,
+                                                                        jobject instance) {
 
     // TODO
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_stopAlwaysAcquirePositionData ");
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_stopAlwaysAcquirePositionData ");
     flag = 0;
 }
 
@@ -276,9 +315,9 @@ int64_t getCurrentTime()      //直接调用这个函数就行了，返回值最
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_cn_com_startai_radarwall_MainActivity_shell(JNIEnv *env, jobject instance, jstring cmd_) {
+Java_cn_com_startai_radarwall_RadarSensor_shell(JNIEnv *env, jobject instance, jstring cmd_) {
     const char *cmd = env->GetStringUTFChars(cmd_, 0);
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_shell ");
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_shell ");
     TLOGD(" shell : %s", cmd);
     // TODO
 
@@ -295,10 +334,10 @@ Java_cn_com_startai_radarwall_MainActivity_shell(JNIEnv *env, jobject instance, 
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_cn_com_startai_radarwall_MainActivity_tapxy(JNIEnv *env, jobject instance, jint x, jint y) {
+Java_cn_com_startai_radarwall_RadarSensor_tapxy(JNIEnv *env, jobject instance, jint x, jint y) {
 
     // TODO
-    TLOGD(" Java_cn_com_startai_radarwall_MainActivity_tapxy %d,%d", x, y);
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_tapxy %d,%d", x, y);
 
     short sinTab[10];
     sinTab[0] = 1;
@@ -311,4 +350,3 @@ Java_cn_com_startai_radarwall_MainActivity_tapxy(JNIEnv *env, jobject instance, 
     i = ((data * (*pSin)));
     TLOGD(" (data * (*pSin) %d", i)
 }
-

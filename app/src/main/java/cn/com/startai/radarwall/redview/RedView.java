@@ -19,7 +19,7 @@ import android.view.SurfaceView;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import cn.com.startai.radarwall.MainActivity;
+import cn.com.startai.radarwall.RadarSensor;
 import cn.com.swain.baselib.display.MathUtils;
 import cn.com.swain.baselib.display.PointS;
 import cn.com.swain.baselib.display.ScreenUtils;
@@ -147,27 +147,27 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-    public void setPointInScreen(PointS mPointFSerial) {
+    public void setPointInScreen(PointS mPointS) {
         if (mDrawThread != null) {
-            mDrawThread.setPointInScreen(mPointFSerial);
+            mDrawThread.setPointInScreen(mPointS);
         }
     }
 
-    public void setCollectPointInScreen(PointS[] mPointFSerial) {
+    public void setCollectPointInScreen(PointS[] mPointS) {
         if (mDrawThread != null) {
-            mDrawThread.setCollectPointInScreen(mPointFSerial);
+            mDrawThread.setCollectPointInScreen(mPointS);
         }
     }
 
-    public void setVirtualScreen(PointS[] mPointFSerials) {
+    public void setVirtualScreen(PointS[] mPointS) {
         if (mDrawThread != null) {
-            mDrawThread.setVirtualScreen(mPointFSerials);
+            mDrawThread.setVirtualScreen(mPointS);
         }
     }
 
-    public void setVirtualScreenRect(PointS[] mPointFSerials) {
+    public void setVirtualScreenRect(PointS[] mPointS) {
         if (mDrawThread != null) {
-            mDrawThread.setVirtualScreenRect(mPointFSerials);
+            mDrawThread.setVirtualScreenRect(mPointS);
         }
     }
 
@@ -252,9 +252,9 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-    public void setPointInWall(PointS PointFSerial) {
+    public void setPointInWall(PointS mPointS) {
         if (mDrawThread != null) {
-            mDrawThread.setPointInWall(PointFSerial);
+            mDrawThread.setPointInWall(mPointS);
         }
     }
 
@@ -264,12 +264,12 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-    private static final int MAX_SWEEP_ANGLE = MainActivity.MAX_SWEEP_ANGLE;
+    private static final int MAX_SWEEP_ANGLE = RadarSensor.MAX_SWEEP_ANGLE;
 
-    private static final int MAX_POINT = MainActivity.FRAME_DATA_SIZE;
+    private static final int MAX_POINT = RadarSensor.FRAME_DATA_SIZE;
 
-    private static final int MAX_WIDTH = MainActivity.MAX_DISTANCE;
-    private static final int MAX_HEIGHT = MainActivity.MAX_DISTANCE;
+    private static final int MAX_WIDTH = RadarSensor.MAX_DISTANCE;
+    private static final int MAX_HEIGHT = RadarSensor.MAX_DISTANCE;
 
 
     private class DrawThread implements Runnable {
@@ -280,6 +280,8 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         private Paint mDistancePaint = new Paint();
         // 帧率画笔
         private Paint mFramePaint = new Paint();
+        // 帧率画笔
+        private Paint mFramePaint2 = new Paint();
         // 错误画笔
         private Paint mErrorPaint = new Paint();
         // xy坐标画笔
@@ -369,6 +371,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         // y 高度比例的缩放比
         private float hyr;
 
+        private float frameX1;
         private float frameX;
         private float frameY;
 
@@ -411,6 +414,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             this.wxr = this.radarWidth / MAX_WIDTH;
             this.hyr = this.radarHeight / MAX_HEIGHT;
 
+            this.frameX1 = this.width / 10 * 1;
             this.frameX = this.width / 10 * 7;
             this.frameY = this.radarTop / 4;
             Tlog.v(TAG, " DrawThread surfaceChanged() width:" + width + " height:" + height);
@@ -457,7 +461,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         private float[] drawPoints = new float[MAX_POINT * 2];
         // xy 坐标点
         private float[] coordPoints = new float[MAX_POINT * 2];
-        private int result = MainActivity.RC_OK;
+        private int result = RadarSensor.RC_OK;
         // 成功请求的次数
         private int successReqFrame = 0;
         // 请求的总次数
@@ -467,18 +471,30 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         // 画的总次数
         private int drawFrame = 0;
 
+        private int fps = 1;
+        private int lastFps = 1;
+        private long lastFpsTime = 0;
+
         void setPoints(int result, char[] points, boolean clearError) {
-            if (result == MainActivity.RC_OK) {
+
+            long l = System.currentTimeMillis();
+            if (Math.abs(lastFpsTime - l) > 1000) {
+                lastFps = fps;
+                fps = 0;
+                lastFpsTime = l;
+            }
+
+            if (result == RadarSensor.RC_OK) {
                 this.distance = points;
                 this.calculation = false;
                 this.successReqFrame++;
+                this.fps++;
                 // 保留错误，多绘制几次
                 if (clearError) {
                     this.result = result;
                 } else if (++this.drawErrorTimes >= 70) {
                     this.result = result;
                 }
-
             } else {
                 this.drawErrorTimes = 0;
                 this.result = result;
@@ -511,10 +527,10 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                 }
 
                 coordPoints[i * 2] = (float)
-                        (xyDistance * MathUtils.sin(MainActivity.DEGREE[i])
+                        (xyDistance * MathUtils.sin(RadarSensor.DEGREE[i])
                                 * wxr);
                 coordPoints[i * 2 + 1] = (float)
-                        (xyDistance * MathUtils.cos(MainActivity.DEGREE[i])
+                        (xyDistance * MathUtils.cos(RadarSensor.DEGREE[i])
                                 * hyr)
                         + radarTop;
 
@@ -522,8 +538,6 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 //                        + " x:" + coordPoints[i * 2]
 //                        + " y:" + coordPoints[i * 2 + 1]);
 
-//                            canvas.drawPoint(i * strong, height - (MAX_HEIGHT - point) * wf, mDistancePaint);
-//                            canvas.drawPoint(i * pointStrong, height - point * pointWeight, mDistancePaint);
                 drawPoints[i * 2] = i * wdr;
                 drawPoints[i * 2 + 1] = realDistance * hdr + radarTop;
 
@@ -533,9 +547,9 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
         private final PointS touchPointSInWall = new PointS();
 
-        private void setPointInWall(PointS PointFSerial) {
-            touchPointSInWall.x = PointFSerial.x * wxr;
-            touchPointSInWall.y = PointFSerial.y * hyr + radarTop;
+        private void setPointInWall(PointS mPointS) {
+            touchPointSInWall.x = mPointS.x * wxr;
+            touchPointSInWall.y = mPointS.y * hyr + radarTop;
             synchronized (syncObj) {
                 syncObj.notify();
             }
@@ -616,9 +630,9 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
 
         //校准点 在墙面的点
-        private void setCollectPointInWall(int i, PointS mPointFSerial) {
-            collectVertexXY[(i % 4) * 2] = mPointFSerial.x * wxr;
-            collectVertexXY[(i % 4) * 2 + 1] = mPointFSerial.y * hyr + radarTop;
+        private void setCollectPointInWall(int i, PointS mPointS) {
+            collectVertexXY[(i % 4) * 2] = mPointS.x * wxr;
+            collectVertexXY[(i % 4) * 2 + 1] = mPointS.y * hyr + radarTop;
         }
 
         public void setCollectPointSInWall(PointS[] mPoints) {
@@ -638,13 +652,13 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                         NOT_DRAW_XY, NOT_DRAW_XY
                 };
 
-        public void setVirtualScreenRect(PointS[] mPointFSerials) {
-            if (mPointFSerials == null || mPointFSerials.length < 4) {
+        public void setVirtualScreenRect(PointS[] mPointS) {
+            if (mPointS == null || mPointS.length < 4) {
                 return;
             }
             for (int i = 0; i < 4; i++) {
-                virtualScreenRect[(i % 4) * 2] = mPointFSerials[i].x * wxr;
-                virtualScreenRect[(i % 4) * 2 + 1] = mPointFSerials[i].y * hyr + radarTop;
+                virtualScreenRect[(i % 4) * 2] = mPointS[i].x * wxr;
+                virtualScreenRect[(i % 4) * 2 + 1] = mPointS[i].y * hyr + radarTop;
             }
         }
 
@@ -657,13 +671,13 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                 };
 
         //校准点 在墙面的点
-        private void setVirtualScreen(PointS[] mPointFSerials) {
-            if (mPointFSerials == null || mPointFSerials.length < 4) {
+        private void setVirtualScreen(PointS[] mPointS) {
+            if (mPointS == null || mPointS.length < 4) {
                 return;
             }
             for (int i = 0; i < 4; i++) {
-                virtualScreen[(i % 4) * 2] = mPointFSerials[i].x * wxr;
-                virtualScreen[(i % 4) * 2 + 1] = mPointFSerials[i].y * hyr + radarTop;
+                virtualScreen[(i % 4) * 2] = mPointS[i].x * wxr;
+                virtualScreen[(i % 4) * 2 + 1] = mPointS[i].y * hyr + radarTop;
             }
         }
 
@@ -777,10 +791,11 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                     canvas.drawText("F:" + successReqFrame + "/" + totalReqFrame + "--" + drawFrame,
                             frameX, frameY,
                             mFramePaint);
+                    canvas.drawText("FPS1:" + lastFps + "--FPS2:" + fps, frameX1, frameY, mFramePaint2);
                     drawFrame++;
 
                     // 画错误码
-                    if (result != MainActivity.RC_OK) {
+                    if (result != RadarSensor.RC_OK) {
                         canvas.drawText("ERROR::" + result, width / 2, radarTop / 2, mErrorPaint);
                     } else {
                         if (msg != null) {
@@ -969,6 +984,14 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             mFramePaint.setTextAlign(Paint.Align.CENTER);
             mFramePaint.setFakeBoldText(true);
             mFramePaint.setTextSize(16 * 2);
+
+            mFramePaint2.setStyle(Paint.Style.FILL);
+            mFramePaint2.setColor(Color.WHITE);
+            mFramePaint2.setAntiAlias(true);
+            mFramePaint2.setStrokeWidth(6);
+            mFramePaint2.setTextAlign(Paint.Align.LEFT);
+            mFramePaint2.setFakeBoldText(true);
+            mFramePaint2.setTextSize(16 * 2);
 
             mMovePaint.setStyle(Paint.Style.FILL);
             mMovePaint.setColor(Color.WHITE);

@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,16 +26,16 @@ public class HomeActivity extends AppCompatActivity {
 
     private String TAG = "radar";
 
-    private final int size = MainActivity.FRAME_DATA_SIZE;
+    private final int size = RadarSensor.FRAME_DATA_SIZE;
     private ExecutorService executorService;
-    private MainActivity sensor;
+    private RadarSensor sensor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        sensor = MainActivity.getInstance();
+        sensor = RadarSensor.getInstance();
         executorService = sensor.initPool();
 
         // Example of a call to a native method
@@ -58,7 +59,7 @@ public class HomeActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        connect = MainActivity.RC_FAILED;
+        connect = RadarSensor.RC_FAILED;
         sensor.setCallBack(null);
         sensor.stopAlwaysAcquirePositionData();
         sensor.disconnect();
@@ -69,7 +70,7 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     public void disconnect(View view) {
-        if (connect != MainActivity.RC_OK) {
+        if (connect != RadarSensor.RC_OK) {
             Toast.makeText(getApplicationContext(), "already disconnected", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -77,7 +78,7 @@ public class HomeActivity extends AppCompatActivity {
             @Override
             public void run() {
                 sensor.disconnect();
-                connect = MainActivity.RC_FAILED;
+                connect = RadarSensor.RC_FAILED;
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -89,10 +90,10 @@ public class HomeActivity extends AppCompatActivity {
         });
     }
 
-    private int connect = MainActivity.RC_FAILED;
+    private int connect = RadarSensor.RC_FAILED;
 
     public void connect(View view) {
-        if (connect == MainActivity.RC_OK) {
+        if (connect == RadarSensor.RC_OK) {
             Toast.makeText(getApplicationContext(), "already connected", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -110,8 +111,10 @@ public class HomeActivity extends AppCompatActivity {
                 Tlog.v(TAG, " getConnectedWiFiSSID :" + connectedWiFiSSID);
 
                 if ("TP-LINK_280024".equalsIgnoreCase(connectedWiFiSSID)) {
+                    //内网地址
                     connect = sensor.connect("192.168.0.119", 4010);
                 } else {
+                    // 外网映射到内网的 192.168.0.119:4010,直接访问外网地址即可
                     connect = sensor.connect("192.168.1.230", 4010);
 
                 }
@@ -121,7 +124,7 @@ public class HomeActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         Toast.makeText(getApplicationContext(),
-                                (connect == MainActivity.RC_OK) ?
+                                (connect == RadarSensor.RC_OK) ?
                                         "connect success"
                                         : "connect fail", Toast.LENGTH_SHORT).show();
                     }
@@ -132,7 +135,7 @@ public class HomeActivity extends AppCompatActivity {
 
     public void isconnect(View view) {
         Toast.makeText(getApplicationContext(),
-                (sensor.isConnected() && connect == MainActivity.RC_OK)
+                (sensor.isConnected() && connect == RadarSensor.RC_OK)
                         ? "Connected"
                         : "Disconnected", Toast.LENGTH_SHORT).show();
     }
@@ -149,12 +152,13 @@ public class HomeActivity extends AppCompatActivity {
     public void alwaysReqData(View view) {
         if (!flag) {
             Toast.makeText(getApplicationContext(), " 开始请求数据", Toast.LENGTH_SHORT).show();
-            sensor.setCallBack(new MainActivity.IDataCallBack() {
+            ((Button) view).setText("停止请求数据");
+            sensor.setCallBack(new RadarSensor.IDataCallBack() {
                 private long showTimes;
 
                 @Override
                 public void onPositionData(char[] buf, int size, int result) {
-                    if (result != MainActivity.RC_OK) {
+                    if (result != RadarSensor.RC_OK) {
                         Tlog.e(TAG, " onPositionData:" + result);
                         long l = System.currentTimeMillis();
                         if (Math.abs(showTimes - l) > 3000) {
@@ -167,6 +171,7 @@ public class HomeActivity extends AppCompatActivity {
             sensor.alwaysAcquirePositionData();
         } else {
             Toast.makeText(getApplicationContext(), " 停止请求数据", Toast.LENGTH_SHORT).show();
+            ((Button) view).setText("一直请求数据");
             sensor.stopAlwaysAcquirePositionData();
             sensor.setCallBack(null);
         }
@@ -174,7 +179,7 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     public void reqData(View view) {
-        if (connect != MainActivity.RC_OK) {
+        if (connect != RadarSensor.RC_OK) {
             Toast.makeText(getApplicationContext(), " please connect", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -194,7 +199,7 @@ public class HomeActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         Toast.makeText(getApplicationContext(),
-                                (result == MainActivity.RC_OK) ? "success" : "Error::" + result,
+                                (result == RadarSensor.RC_OK) ? "success" : "Error::" + result,
                                 Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -213,7 +218,7 @@ public class HomeActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         Toast.makeText(getApplicationContext(),
-                                (result == MainActivity.RC_OK) ?
+                                (result == RadarSensor.RC_OK) ?
                                         "close success"
                                         : "close fail", Toast.LENGTH_SHORT).show();
                     }
@@ -232,7 +237,7 @@ public class HomeActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         Toast.makeText(getApplicationContext(),
-                                (result == MainActivity.RC_OK) ?
+                                (result == RadarSensor.RC_OK) ?
                                         "open success"
                                         : "open fail", Toast.LENGTH_SHORT).show();
                     }
@@ -242,7 +247,7 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     public void skipRedview(View view) {
-        if (connect != MainActivity.RC_OK) {
+        if (connect != RadarSensor.RC_OK) {
             Toast.makeText(getApplicationContext(), " please connect", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -250,7 +255,7 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     public void calibration(View view) {
-        if (connect != MainActivity.RC_OK) {
+        if (connect != RadarSensor.RC_OK) {
             Toast.makeText(getApplicationContext(), " please connect", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -297,20 +302,20 @@ public class HomeActivity extends AppCompatActivity {
             @Override
             public void run() {
                 long l = System.currentTimeMillis();
-//                int shell = MainActivity.getInstance().shell(" input keyevent 4 ");
+//                int shell = RadarSensor.getInstance().shell(" input keyevent 4 ");
                 Tlog.v(TAG, " shell: in android  startTime:" + l);
-                int shell = MainActivity.getInstance().shell("input tap " + locationOnScreen[0] + " " + locationOnScreen[1]);
+                int shell = RadarSensor.getInstance().shell("input tap " + locationOnScreen[0] + " " + locationOnScreen[1]);
                 long l1 = System.currentTimeMillis();
                 Tlog.v(TAG, " shell: in android  endTime:" + l1);
                 Tlog.v(TAG, " shell: in android" + shell + " useTime:" + (l1 - l));
 
-                MainActivity.getInstance().tapxy(locationOnScreen[0], locationOnScreen[1]);
+                RadarSensor.getInstance().tapxy(locationOnScreen[0], locationOnScreen[1]);
                 Tlog.v(TAG, " tapxy in thread:  useTime:" + (System.currentTimeMillis() - l1));
             }
         });
 
         long l1 = System.currentTimeMillis();
-        MainActivity.getInstance().tapxy(locationOnScreen[0], locationOnScreen[1]);
+        RadarSensor.getInstance().tapxy(locationOnScreen[0], locationOnScreen[1]);
         Tlog.v(TAG, " tapxy in ui:  useTime:" + (System.currentTimeMillis() - l1));
     }
 

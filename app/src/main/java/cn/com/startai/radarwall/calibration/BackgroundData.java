@@ -2,7 +2,7 @@ package cn.com.startai.radarwall.calibration;
 
 import java.io.Serializable;
 
-import cn.com.startai.radarwall.MainActivity;
+import cn.com.startai.radarwall.RadarSensor;
 
 /**
  * author Guoqiang_Sun
@@ -11,9 +11,9 @@ import cn.com.startai.radarwall.MainActivity;
  */
 public class BackgroundData implements Serializable {
 
-    private final int maxNum = MainActivity.MAX_DISTANCE;
-    private final int size = MainActivity.FRAME_DATA_SIZE;
-    private final int fps = MainActivity.MAX_FPS;
+    private final int maxNum = RadarSensor.MAX_DISTANCE;
+    private final int size = RadarSensor.FRAME_DATA_SIZE;
+    private final int fps = RadarSensor.MAX_FPS;
     private final int fpsCycle = 3;
 
     private char[] avgBg = new char[size];

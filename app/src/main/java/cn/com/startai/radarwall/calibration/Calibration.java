@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import cn.com.startai.radarwall.MainActivity;
+import cn.com.startai.radarwall.RadarSensor;
 import cn.com.startai.radarwall.utils.PrintData;
 import cn.com.swain.baselib.display.MathUtils;
 import cn.com.swain.baselib.display.PointS;
@@ -31,11 +31,11 @@ public class Calibration implements Runnable, Serializable {
     private boolean calibrationFinish;
 
 
-    private final int SIZE = MainActivity.FRAME_DATA_SIZE;
-    private final int MAX_DISTANCE = MainActivity.MAX_DISTANCE;
-    private final float[] DEGREE = MainActivity.DEGREE;
-    private final int WEAK_SIGNAL = MainActivity.WEAK_SIGNAL;
-    private final int DATA_HZ = MainActivity.MAX_FPS;
+    private final int SIZE = RadarSensor.FRAME_DATA_SIZE;
+    private final int MAX_DISTANCE = RadarSensor.MAX_DISTANCE;
+    private final float[] DEGREE = RadarSensor.DEGREE;
+    private final int WEAK_SIGNAL = RadarSensor.WEAK_SIGNAL;
+    private final int DATA_HZ = RadarSensor.MAX_FPS;
     private final int TOUCH_FPS = 10; // 1秒 10帧
     private final int AVAILABLE_TOUCH_LENGTH = DATA_HZ / TOUCH_FPS / 2;
     private final int clearPS = Math.max(AVAILABLE_TOUCH_LENGTH / 2, 1);
@@ -139,8 +139,8 @@ public class Calibration implements Runnable, Serializable {
 
         final int[] mAvailableIndexBuf = new int[SIZE]; // 可用下标
         final PointS nullPointFSerial = new PointS(-30f, 0f);
-        final PointS touchPointFSerialInWall = new PointS(-30f, 0f);
-        final PointS touchPointFSerialInScreen = new PointS();
+        final PointS touchPointSInWall = new PointS(-30f, 0f);
+        final PointS touchPointSInScreen = new PointS();
 
         if (mBackgroundData.countBGFinish()) {
             if (this.mCallBack != null) {
@@ -210,14 +210,14 @@ public class Calibration implements Runnable, Serializable {
             }
             Tlog.e(TAG_LARG, " find touch point ");
 
-            calculationTouchPoint(touchPointFSerialInWall, mAvailableIndexBuf, availableSize, mDistanceBuf);
+            calculationTouchPoint(touchPointSInWall, mAvailableIndexBuf, availableSize, mDistanceBuf);
 
             if (this.mCallBack != null) {
-                this.mCallBack.onTouchPointInWall(touchPointFSerialInWall);
+                this.mCallBack.onTouchPointInWall(touchPointSInWall);
             }
 
             if (!calibrationFinish) {
-                if (canCalibration && calculationVertex(touchPointFSerialInWall) >= 4) {
+                if (canCalibration && calculationVertex(touchPointSInWall) >= 4) {
                     Tlog.e(TAG, " calibrationFinish " + mVertexCollect.PointStoString());
                     calibrationFinish = true;
                     collectIndex = -1;
@@ -235,11 +235,8 @@ public class Calibration implements Runnable, Serializable {
                 continue;
             }
 
-            mWallScreen.calculationInScreen(touchPointFSerialInWall, touchPointFSerialInScreen);
-            onTouchPointInScreen(touchPointFSerialInScreen);
-//            if (mCallBack != null) {
-//                mCallBack.onTouchPointInScreen(touchPointFSerialInScreen);
-//            }
+            mWallScreen.calculationInScreen(touchPointSInWall, touchPointSInScreen);
+            onTouchPointInScreen(touchPointSInScreen);
         }
 
         Tlog.e(TAG, " Calibration run finish ");
@@ -247,24 +244,28 @@ public class Calibration implements Runnable, Serializable {
 
     private int notouchTimes = 0;
     private int addPointIndex = 0;
-    private final PointS avgPointFSerial = new PointS();
+    private final PointS avgPoints = new PointS();
+    private final PointS totalPoints = new PointS();
 
-    private void onTouchPointInScreen(PointS mPointFSerial) {
+    private void onTouchPointInScreen(PointS mPointS) {
         notouchTimes = 0;
         int i = addPointIndex % AVAILABLE_TOUCH_LENGTH;
-        mAvailableTouchPointInScreen[i].set(mPointFSerial);
+        mAvailableTouchPointInScreen[i].set(mPointS);
         addPointIndex++;
+        totalPoints.x += mPointS.x;
+        totalPoints.y += mPointS.y;
         if (i == (AVAILABLE_TOUCH_LENGTH - 1)) {
-            avgPointFSerial.x = 0;
-            avgPointFSerial.y = 0;
-            for (PointS tPointFSerial : mAvailableTouchPointInScreen) {
-                avgPointFSerial.x += tPointFSerial.x;
-                avgPointFSerial.y += tPointFSerial.y;
-            }
-            avgPointFSerial.x /= AVAILABLE_TOUCH_LENGTH;
-            avgPointFSerial.y /= AVAILABLE_TOUCH_LENGTH;
+            avgPoints.x = 0;
+            avgPoints.y = 0;
+
+            avgPoints.x = totalPoints.x / AVAILABLE_TOUCH_LENGTH;
+            avgPoints.y = totalPoints.y / AVAILABLE_TOUCH_LENGTH;
+
+            totalPoints.x = 0;
+            totalPoints.y = 0;
+
             if (mCallBack != null) {
-                mCallBack.onTouchPointInScreen(avgPointFSerial);
+                mCallBack.onTouchPointInScreen(avgPoints);
             }
         }
     }
@@ -321,7 +322,7 @@ public class Calibration implements Runnable, Serializable {
     private char[] mBuf;
 
     public void setPositionData(int result, char[] buf) {
-        if (result == MainActivity.RC_OK) {
+        if (result == RadarSensor.RC_OK) {
             this.mBuf = buf;
             synchronized (synObj) {
                 synObj.notify();

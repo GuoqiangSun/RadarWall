@@ -1,7 +1,5 @@
 package cn.com.startai.radarwall.calibration;
 
-import android.graphics.PointF;
-
 import java.io.Serializable;
 import java.util.Arrays;
 

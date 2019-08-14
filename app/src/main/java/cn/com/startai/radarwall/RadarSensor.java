@@ -1,24 +1,31 @@
 package cn.com.startai.radarwall;
 
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import cn.com.swain.baselib.log.Tlog;
 
-public class MainActivity {
+public class RadarSensor {
 
     private String TAG = "radar";
 
-    private MainActivity() {
+    private final ByteBuffer allocate;
+
+    private final char[] charBuf;
+
+    private RadarSensor() {
+        allocate = ByteBuffer.allocateDirect(FRAME_DATA_SIZE * 2);
+        charBuf = new char[FRAME_DATA_SIZE ];
     }
 
-    public static MainActivity getInstance() {
+    public static RadarSensor getInstance() {
         return ClassHolder.SENSOR;
     }
 
     private static class ClassHolder {
-        private static final MainActivity SENSOR = new MainActivity();
+        private static final RadarSensor SENSOR = new RadarSensor();
     }
 
     private ExecutorService executorService;
@@ -104,7 +111,11 @@ public class MainActivity {
      */
     public native String stringFromJNI();
 
-    public native int Initialize();
+    public int Initialize() {
+        return Initialize(allocate);
+    }
+
+    public native int Initialize(ByteBuffer allocate);
 
     public native void Uninitialize();
 
@@ -132,7 +143,7 @@ public class MainActivity {
 
     public native int shell(String cmd);
 
-    public native void tapxy(int x,int y);
+    public native void tapxy(int x, int y);
 
     protected final void callBack(char[] buf, int size, int result) {
         if (mDataCallBack != null) {
@@ -141,6 +152,21 @@ public class MainActivity {
             Tlog.v(TAG, " callBack()  mDataCallBack==null :: " + result);
         }
     }
+
+
+    protected final void callBackCharBuffer(int size, int result) {
+        if (mDataCallBack != null) {
+            byte[] array = allocate.array();
+//            allocate.asCharBuffer().array();
+            for (int i = 0; i < size; i++) {
+                charBuf[i] = (char) (((array[i * 2] & 0xFF) << 8) | (array[i * 2 + 1] & 0xFF));
+            }
+            mDataCallBack.onPositionData(charBuf, FRAME_DATA_SIZE, result);
+        } else {
+            Tlog.v(TAG, " callBackCharBuffer()  mDataCallBack==null :: " + result);
+        }
+    }
+
 
     private IDataCallBack mDataCallBack;
 

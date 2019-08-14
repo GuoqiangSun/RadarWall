@@ -12,7 +12,7 @@ import android.widget.Toast;
 
 import java.util.concurrent.ExecutorService;
 
-import cn.com.startai.radarwall.MainActivity;
+import cn.com.startai.radarwall.RadarSensor;
 import cn.com.startai.radarwall.R;
 import cn.com.startai.radarwall.calibration.Calibration;
 import cn.com.startai.radarwall.calibration.CalibrationManager;
@@ -28,11 +28,11 @@ import cn.com.swain.baselib.log.Tlog;
  */
 public class RedViewActivity extends AppCompatActivity {
 
-    private final int size = MainActivity.FRAME_DATA_SIZE;
+    private final int size = RadarSensor.FRAME_DATA_SIZE;
     public static final String TAG = "RedView";
     private RedView mRedView;
-    private MainActivity.IDataCallBack mDataCallBack;
-    private MainActivity sensor;
+    private RadarSensor.IDataCallBack mDataCallBack;
+    private RadarSensor sensor;
 
     private boolean canCollect;
 
@@ -42,7 +42,7 @@ public class RedViewActivity extends AppCompatActivity {
         StatusBarUtil.fullScreenHideStatusBar(getWindow(), false);
         setContentView(R.layout.activity_redview);
 
-        sensor = MainActivity.getInstance();
+        sensor = RadarSensor.getInstance();
 
         getWindow().setFlags(
                 WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
@@ -59,10 +59,10 @@ public class RedViewActivity extends AppCompatActivity {
         });
 
 
-        mDataCallBack = new MainActivity.IDataCallBack() {
+        mDataCallBack = new RadarSensor.IDataCallBack() {
             @Override
             public void onPositionData(char[] buf, int size, int result) {
-                MainActivity.reserveBuf(buf);
+                RadarSensor.reserveBuf(buf);
                 if (mRedView != null) {
                     mRedView.setPoints(result, buf, false);
                 }
@@ -159,7 +159,7 @@ public class RedViewActivity extends AppCompatActivity {
                 char[] chars = new char[size];
                 int result = sensor.acquirePositionDataArray(chars, size);
                 Tlog.v(TAG, " acquirePositionData result:" + result);
-                MainActivity.reserveBuf(chars);
+                RadarSensor.reserveBuf(chars);
                 mRedView.setPoints(result, chars, true);
                 CalibrationManager.getInstance().setPositionData(result, chars);
             }

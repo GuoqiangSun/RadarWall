@@ -33,7 +33,57 @@ public class JavaTest {
 
 //        recalculation(10, 0, 30);
 
-        cb();
+//        cb();
+
+        str();
+        System.out.println("/////////");
+        str2();
+    }
+
+
+    private static void str2() {
+
+        long l = System.nanoTime();
+        String s = "1" + "2" + "3";
+        long l1 = System.nanoTime();
+
+        System.out.println(" use Time:" + (l1 - l));
+        System.out.println("s +:" + s);
+
+        long lll = System.nanoTime();
+        String ss = "4" + "5" + "6";
+        long llll = System.nanoTime();
+
+        System.out.println(" use Time:" + (llll - lll));
+        System.out.println("ss +:" + ss);
+
+        System.out.println("end use Time:" + (llll - l));
+
+    }
+
+    private static void str() {
+        StringBuilder sb = new StringBuilder(128);
+        long l = System.nanoTime();
+        sb.append("1");
+        sb.append("2");
+        sb.append("3");
+        long l1 = System.nanoTime();
+
+        System.out.println(" use Time:" + (l1 - l));
+        System.out.println("append:" + sb.toString());
+
+        long lll = System.nanoTime();
+        sb.replace(0, sb.length(), "");
+//        System.out.println("replace:" + sb.toString());
+        sb.append("4");
+        sb.append("5");
+        sb.append("6");
+        long llll = System.nanoTime();
+
+        System.out.println(" use Time:" + (llll - lll));
+        System.out.println("append:" + sb.toString());
+
+        System.out.println("end use Time:" + (llll - l));
     }
 
     private static void cb() {
