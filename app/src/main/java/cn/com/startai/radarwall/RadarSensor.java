@@ -17,7 +17,7 @@ public class RadarSensor {
 
     private RadarSensor() {
         allocate = ByteBuffer.allocateDirect(FRAME_DATA_SIZE * 2);
-        charBuf = new char[FRAME_DATA_SIZE ];
+        charBuf = new char[FRAME_DATA_SIZE];
     }
 
     public static RadarSensor getInstance() {
@@ -133,9 +133,17 @@ public class RadarSensor {
 
     public native int setLD(int gear);
 
-    public native int[] acquirePositionData();
+    public int[] acquirePositionDataJ() {
+        return acquirePositionData();
+    }
 
-    public native int acquirePositionDataArray(char[] chars, int length);
+    private native int[] acquirePositionData();
+
+    public int acquirePositionDataArrayJ(char[] chars, int length) {
+        return acquirePositionDataArray(chars, length);
+    }
+
+    private native int acquirePositionDataArray(char[] chars, int length);
 
     public native void alwaysAcquirePositionData();
 

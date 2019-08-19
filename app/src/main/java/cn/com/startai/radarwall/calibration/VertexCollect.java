@@ -4,8 +4,9 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
 
-import cn.com.swain.baselib.display.MathUtils;
-import cn.com.swain.baselib.display.PointS;
+import cn.com.startai.radarwall.RadarSensor;
+import cn.com.swain.baselib.alg.MathUtils;
+import cn.com.swain.baselib.alg.PointS;
 import cn.com.swain.baselib.log.Tlog;
 
 /**
@@ -27,12 +28,13 @@ public class VertexCollect implements Serializable {
     private PointS[] mPointS4;
     private int PointSDIndex;
 
-    private final int REMOVE = 10; // 移除 前后的个数
+    private final int REMOVE = 20; // 移除 前后的个数
 
+    private final int MAX_FPS = RadarSensor.MAX_FPS;
 
     // 最小不的低于70
-    // REMOVE*4 表示统计前后的10个点不要，排序后的前后十个点不要
-    private final int MAX_SIZE = 70 + REMOVE * 4;
+    // REMOVE*4 表示统计前后的点不要，排序后的前后点不要
+    private final int MAX_SIZE = MAX_FPS * 3 + REMOVE * 4;
 
     /**
      * 四个顶点的数组
@@ -193,7 +195,7 @@ public class VertexCollect implements Serializable {
 
         int availableSize = MAX_SIZE - REMOVE * 2;
         PointS[] tmp = new PointS[availableSize];
-        // 去除前后十个点
+        // 去除前后点
         System.arraycopy(mPointSs, REMOVE, tmp, 0, availableSize);
 
         Arrays.sort(tmp, new Comparator<PointS>() {
@@ -202,7 +204,7 @@ public class VertexCollect implements Serializable {
                 return Float.compare(o1.x * o1.y, o2.x * o2.y);
             }
         });
-        // 排序后，去除前面最小十个点 和 后面最大十个点
+        // 排序后，去除前面 和 后面
         for (int i = REMOVE; i < (availableSize - REMOVE); i++) {
             mPointS.x += tmp[i].x;
             mPointS.y += tmp[i].y;

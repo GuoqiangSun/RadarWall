@@ -20,8 +20,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import cn.com.startai.radarwall.RadarSensor;
-import cn.com.swain.baselib.display.MathUtils;
-import cn.com.swain.baselib.display.PointS;
+import cn.com.swain.baselib.alg.MathUtils;
+import cn.com.swain.baselib.alg.PointS;
 import cn.com.swain.baselib.display.ScreenUtils;
 import cn.com.swain.baselib.log.Tlog;
 
@@ -174,6 +174,12 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
     public void showTxt(String msg) {
         if (mDrawThread != null) {
             mDrawThread.showTxt(msg);
+        }
+    }
+
+    public void setAlgFps(int fps, int lastFps) {
+        if (mDrawThread != null) {
+            mDrawThread.setAlgFps(fps, lastFps);
         }
     }
 
@@ -371,9 +377,10 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         // y 高度比例的缩放比
         private float hyr;
 
-        private float frameX1;
-        private float frameX;
-        private float frameY;
+        private float frameX1; // distance fps x
+        private float frameX; // canvas fps x
+        private float frameY; // distance canvas fps y
+        private float frameY2; //alg fps y
 
         private final int[] locationOnScreen = new int[4];
 
@@ -417,6 +424,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             this.frameX1 = this.width / 10 * 1;
             this.frameX = this.width / 10 * 7;
             this.frameY = this.radarTop / 4;
+            this.frameY2 = this.frameY + txtSize;
             Tlog.v(TAG, " DrawThread surfaceChanged() width:" + width + " height:" + height);
             Tlog.v(TAG, " DrawThread surfaceChanged() wdr:" + wdr + " hdr:" + hdr);
             Tlog.v(TAG, " DrawThread surfaceChanged() wxr:" + wxr + " hyr:" + hyr);
@@ -470,6 +478,14 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         private int drawErrorTimes = 0;
         // 画的总次数
         private int drawFrame = 0;
+
+        private int algFps = 1;
+        private int lastAlgFps = 1;
+
+        public void setAlgFps(int fps, int lastFps) {
+            this.algFps = fps;
+            this.lastAlgFps = lastFps;
+        }
 
         private int fps = 1;
         private int lastFps = 1;
@@ -788,11 +804,11 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                     canvas.drawLine(0, height, width, height, mCoordPaint);
 
                     // 画帧率
-                    canvas.drawText("F:" + successReqFrame + "/" + totalReqFrame + "--" + drawFrame,
+                    canvas.drawText("F:" + successReqFrame + "/" + totalReqFrame + "--" + ++drawFrame,
                             frameX, frameY,
                             mFramePaint);
-                    canvas.drawText("FPS1:" + lastFps + "--FPS2:" + fps, frameX1, frameY, mFramePaint2);
-                    drawFrame++;
+                    canvas.drawText("D-FPS1:" + lastFps + "--FPS2:" + fps, frameX1, frameY, mFramePaint2);
+                    canvas.drawText("A-FPS1:" + lastAlgFps + "--FPS2:" + algFps, frameX1, frameY2, mFramePaint2);
 
                     // 画错误码
                     if (result != RadarSensor.RC_OK) {
@@ -895,6 +911,8 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                 Color.parseColor("#FF33FF"), Color.parseColor("#CC99FF"), Color.parseColor("#9900CC"),
                 Color.parseColor("#FF00FF"), Color.parseColor("#CC66FF"), Color.parseColor("#CC6699")};
 
+        private final int txtSize = 16 * 2;
+
         private void initPaint() {
 
             mDistancePaint.setTextAlign(Paint.Align.CENTER);
@@ -975,7 +993,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             mErrorPaint.setStrokeWidth(6);
             mErrorPaint.setTextAlign(Paint.Align.CENTER);
             mErrorPaint.setFakeBoldText(true);
-            mErrorPaint.setTextSize(16 * 2);
+            mErrorPaint.setTextSize(txtSize);
 
             mFramePaint.setStyle(Paint.Style.FILL);
             mFramePaint.setColor(Color.WHITE);
@@ -983,7 +1001,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             mFramePaint.setStrokeWidth(6);
             mFramePaint.setTextAlign(Paint.Align.CENTER);
             mFramePaint.setFakeBoldText(true);
-            mFramePaint.setTextSize(16 * 2);
+            mFramePaint.setTextSize(txtSize);
 
             mFramePaint2.setStyle(Paint.Style.FILL);
             mFramePaint2.setColor(Color.WHITE);
@@ -991,7 +1009,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             mFramePaint2.setStrokeWidth(6);
             mFramePaint2.setTextAlign(Paint.Align.LEFT);
             mFramePaint2.setFakeBoldText(true);
-            mFramePaint2.setTextSize(16 * 2);
+            mFramePaint2.setTextSize(txtSize);
 
             mMovePaint.setStyle(Paint.Style.FILL);
             mMovePaint.setColor(Color.WHITE);
@@ -999,8 +1017,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             mMovePaint.setStrokeWidth(7);
             mMovePaint.setTextAlign(Paint.Align.CENTER);
             mMovePaint.setFakeBoldText(true);
-            mMovePaint.setTextSize(16 * 2);
+            mMovePaint.setTextSize(txtSize);
         }
-
     }
 }

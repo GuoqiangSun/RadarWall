@@ -2,10 +2,12 @@ package cn.com.startai.radarwall.calibration;
 
 import android.content.Context;
 
+import java.io.File;
 import java.io.Serializable;
 
+import cn.com.swain.baselib.app.utils.DataCleanManager;
 import cn.com.swain.baselib.clone.SerialManager;
-import cn.com.swain.baselib.display.PointS;
+import cn.com.swain.baselib.alg.PointS;
 import cn.com.swain.baselib.log.Tlog;
 
 /**
@@ -30,6 +32,10 @@ public class CalibrationManager implements Serializable {
         String msg = mCalibrationManager == null ? "null" : mCalibrationManager.toString();
         Tlog.v(TAG, "CalibrationManager get: " + msg);
 
+    }
+
+    public static void clear(Context ctx) {
+        DataCleanManager.cleanInternalCache(ctx);
     }
 
     @Override

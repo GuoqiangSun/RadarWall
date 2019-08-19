@@ -313,13 +313,7 @@ int64_t getCurrentTime()      //直接调用这个函数就行了，返回值最
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
-extern "C"
-JNIEXPORT jint JNICALL
-Java_cn_com_startai_radarwall_RadarSensor_shell(JNIEnv *env, jobject instance, jstring cmd_) {
-    const char *cmd = env->GetStringUTFChars(cmd_, 0);
-    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_shell ");
-    TLOGD(" shell : %s", cmd);
-    // TODO
+int shell(const char *cmd){
 
     int64_t time1 = getCurrentTime();
     TLOGD(" shell startTime : %ld", time1);
@@ -328,7 +322,20 @@ Java_cn_com_startai_radarwall_RadarSensor_shell(JNIEnv *env, jobject instance, j
 
     TLOGD(" shell endTime : %ld", time2);
     TLOGD(" shell useTime : %ld", (time2 - time1));
+
+    return i;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_cn_com_startai_radarwall_RadarSensor_shell(JNIEnv *env, jobject instance, jstring cmd_) {
+    const char *cmd = env->GetStringUTFChars(cmd_, 0);
+    TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_shell ");
+    TLOGD(" shell : %s", cmd);
+    // TODO
+    int i =shell(cmd);
     env->ReleaseStringUTFChars(cmd_, cmd);
+
     return i;
 }
 
@@ -338,15 +345,8 @@ Java_cn_com_startai_radarwall_RadarSensor_tapxy(JNIEnv *env, jobject instance, j
 
     // TODO
     TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_tapxy %d,%d", x, y);
-
-    short sinTab[10];
-    sinTab[0] = 1;
-    sinTab[1] = 2;
-    short *pSin = (short *) sinTab;
-    int data = 1;
-    int i = ((data * (*pSin)));
-    TLOGD(" (data * (*pSin) %d", i)
-    pSin++;
-    i = ((data * (*pSin)));
-    TLOGD(" (data * (*pSin) %d", i)
+    char output[20];
+    sprintf(output, "input tap %d %d", x,y);
+    TLOGV(" tapxy:: %s ",output);
+    shell(output);
 }

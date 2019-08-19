@@ -8,8 +8,8 @@ import java.util.concurrent.Executors;
 
 import cn.com.startai.radarwall.RadarSensor;
 import cn.com.startai.radarwall.utils.PrintData;
-import cn.com.swain.baselib.display.MathUtils;
-import cn.com.swain.baselib.display.PointS;
+import cn.com.swain.baselib.alg.MathUtils;
+import cn.com.swain.baselib.alg.PointS;
 import cn.com.swain.baselib.log.Tlog;
 
 /**
@@ -36,9 +36,9 @@ public class Calibration implements Runnable, Serializable {
     private final float[] DEGREE = RadarSensor.DEGREE;
     private final int WEAK_SIGNAL = RadarSensor.WEAK_SIGNAL;
     private final int DATA_HZ = RadarSensor.MAX_FPS;
-    private final int TOUCH_FPS = 10; // 1秒 10帧
-    private final int AVAILABLE_TOUCH_LENGTH = DATA_HZ / TOUCH_FPS / 2;
-    private final int clearPS = Math.max(AVAILABLE_TOUCH_LENGTH / 2, 1);
+    private final int TOUCH_FPS = 15; // 1秒 x帧
+    private final int AVAILABLE_TOUCH_LENGTH = DATA_HZ / TOUCH_FPS;
+    private final int clearPS = Math.min(Math.max(AVAILABLE_TOUCH_LENGTH / 2, 1), 5);
 
     private ExecutorService executorService;
 
@@ -177,6 +177,8 @@ public class Calibration implements Runnable, Serializable {
                 continue;
             }
 
+            fps();
+
             if (!calculationBg(mDistanceBuf)) {
                 Tlog.i(TAG, " calculation Background data ... ");
             }
@@ -240,6 +242,23 @@ public class Calibration implements Runnable, Serializable {
         }
 
         Tlog.e(TAG, " Calibration run finish ");
+    }
+
+    private int fps = 1;
+    private int lastFps = 1;
+    private long lastFpsTime = 0;
+
+    private void fps() {
+        long l = System.currentTimeMillis();
+        if (Math.abs(lastFpsTime - l) > 1000) {
+            lastFps = fps;
+            fps = 0;
+            lastFpsTime = l;
+        }
+        fps++;
+        if (mCallBack != null) {
+            mCallBack.onFps(fps, lastFps);
+        }
     }
 
     private int notouchTimes = 0;
@@ -504,6 +523,7 @@ public class Calibration implements Runnable, Serializable {
 
         void onWallBGDiff(int[] buf, int size);
 
+        void onFps(int fps, int lastFps);
     }
 
     private IVertexFinish mVertexFinish;

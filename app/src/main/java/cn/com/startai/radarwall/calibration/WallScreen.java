@@ -3,10 +3,10 @@ package cn.com.startai.radarwall.calibration;
 import java.io.Serializable;
 import java.util.Arrays;
 
-import cn.com.swain.baselib.display.LinearFunction;
-import cn.com.swain.baselib.display.MathUtils;
-import cn.com.swain.baselib.display.PointS;
-import cn.com.swain.baselib.display.Screen;
+import cn.com.swain.baselib.alg.LinearFunction;
+import cn.com.swain.baselib.alg.MathUtils;
+import cn.com.swain.baselib.alg.PointS;
+import cn.com.swain.baselib.alg.Screen;
 import cn.com.swain.baselib.log.Tlog;
 
 /**
@@ -138,10 +138,10 @@ public class WallScreen implements Serializable {
         // 计算墙上校准屏幕的宽高
         float widthDA = (float) MathUtils.calculationBevel(mWallPointD, mWallPointA);
         float widthCB = (float) MathUtils.calculationBevel(mWallPointC, mWallPointB);
-        mWallCollectScreen.width = (widthDA + widthCB) / 2;
+        mWallCollectScreen.width = (widthDA * 0.6f + widthCB * 0.4f);
         float heightBA = (float) MathUtils.calculationBevel(mWallPointB, mWallPointA);
         float heightCD = (float) MathUtils.calculationBevel(mWallPointC, mWallPointD);
-        mWallCollectScreen.height = (heightBA + heightCD) / 2;
+        mWallCollectScreen.height = (heightBA * 0.6f + heightCD * 0.4f);
         Tlog.v(TAG_SIN, " WallCollectScreen:" + mWallCollectScreen.toString());
 
         // 计算墙上屏幕 和 手机屏幕的比例
@@ -158,10 +158,10 @@ public class WallScreen implements Serializable {
         // 计算墙上 AD  AB的倾斜角
         float angle = MathUtils.angle(mWallPointA, mWallPointD, new PointS(mWallPointD.x, mWallPointA.y));
         float angle1 = MathUtils.angle(mWallPointB, mWallPointC, new PointS(mWallPointC.x, mWallPointB.y));
-        angleAD = (angle + angle1) / 2;
+        angleAD = angle * 0.5f + angle1 * 0.5f;
         float angle2 = MathUtils.angle(mWallPointA, mWallPointB, new PointS(mWallPointA.x, mWallPointB.y));
         float angle3 = MathUtils.angle(mWallPointD, mWallPointC, new PointS(mWallPointD.x, mWallPointC.y));
-        angleAB = (angle2 + angle3) / 2;
+        angleAB = angle2 * 0.5f + angle3 * 0.5f;
         // AD AB倾斜角的平均值
         angleAC = (angleAD + angleAB) / 2;
 

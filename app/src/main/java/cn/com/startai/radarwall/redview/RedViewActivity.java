@@ -1,22 +1,28 @@
 package cn.com.startai.radarwall.redview;
 
+import android.content.Context;
 import android.graphics.PointF;
+import android.hardware.input.InputManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
+import android.view.InputEvent;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.concurrent.ExecutorService;
 
 import cn.com.startai.radarwall.RadarSensor;
 import cn.com.startai.radarwall.R;
 import cn.com.startai.radarwall.calibration.Calibration;
 import cn.com.startai.radarwall.calibration.CalibrationManager;
-import cn.com.swain.baselib.display.PointS;
+import cn.com.swain.baselib.alg.PointS;
 import cn.com.swain.baselib.display.ScreenUtils;
 import cn.com.swain.baselib.display.StatusBarUtil;
 import cn.com.swain.baselib.log.Tlog;
@@ -62,7 +68,6 @@ public class RedViewActivity extends AppCompatActivity {
         mDataCallBack = new RadarSensor.IDataCallBack() {
             @Override
             public void onPositionData(char[] buf, int size, int result) {
-                RadarSensor.reserveBuf(buf);
                 if (mRedView != null) {
                     mRedView.setPoints(result, buf, false);
                 }
@@ -157,9 +162,8 @@ public class RedViewActivity extends AppCompatActivity {
             @Override
             public void run() {
                 char[] chars = new char[size];
-                int result = sensor.acquirePositionDataArray(chars, size);
+                int result = sensor.acquirePositionDataArrayJ(chars, size);
                 Tlog.v(TAG, " acquirePositionData result:" + result);
-                RadarSensor.reserveBuf(chars);
                 mRedView.setPoints(result, chars, true);
                 CalibrationManager.getInstance().setPositionData(result, chars);
             }
@@ -294,6 +298,13 @@ public class RedViewActivity extends AppCompatActivity {
         public void onWallBGDiff(int[] buf, int size) {
             if (mRedView != null) {
                 mRedView.bgDiff(buf, size);
+            }
+        }
+
+        @Override
+        public void onFps(int fps, int lastFps) {
+            if (mRedView != null) {
+                mRedView.setAlgFps(fps, lastFps);
             }
         }
     };
