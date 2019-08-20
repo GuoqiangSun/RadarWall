@@ -6,6 +6,11 @@ import java.util.concurrent.Executors;
 
 import cn.com.swain.baselib.log.Tlog;
 
+/**
+ * author Guoqiang_Sun
+ * date 2019/7/29
+ * desc
+ */
 public class RadarSensor {
 
     private String TAG = "radar";

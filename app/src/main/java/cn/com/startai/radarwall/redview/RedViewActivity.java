@@ -18,7 +18,6 @@ import cn.com.startai.radarwall.calibration.Calibration;
 import cn.com.startai.radarwall.calibration.CalibrationManager;
 import cn.com.swain.baselib.alg.PointS;
 import cn.com.swain.baselib.display.ScreenUtils;
-import cn.com.swain.baselib.display.StatusBarUtil;
 import cn.com.swain.baselib.log.Tlog;
 
 /**
@@ -39,7 +38,6 @@ public class RedViewActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        StatusBarUtil.fullScreenHideStatusBar(getWindow(), false);
         setContentView(R.layout.activity_redview);
 
         sensor = RadarSensor.getInstance();

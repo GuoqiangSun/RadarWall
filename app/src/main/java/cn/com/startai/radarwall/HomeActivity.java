@@ -17,6 +17,7 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,13 +32,20 @@ import cn.com.startai.radarwall.calibration.CalibrationManager;
 import cn.com.startai.radarwall.redview.RedViewActivity;
 import cn.com.startai.radarwall.utils.FileManager;
 import cn.com.swain.baselib.display.ScreenUtils;
+import cn.com.swain.baselib.display.StatusBarUtil;
 import cn.com.swain.baselib.log.Tlog;
 import cn.com.swain.baselib.log.logRecord.impl.LogRecordManager;
 import cn.com.swain.baselib.permission.PermissionGroup;
 import cn.com.swain.baselib.permission.PermissionRequest;
 import cn.com.swain.baselib.permission.PermissionSingleton;
+import cn.com.swain.baselib.util.IpUtil;
 import cn.com.swain.baselib.util.WiFiUtil;
 
+/**
+ * author Guoqiang_Sun
+ * date 2019/7/29
+ * desc
+ */
 public class HomeActivity extends AppCompatActivity {
 
     private String TAG = "radar";
@@ -49,6 +57,7 @@ public class HomeActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        StatusBarUtil.fullscreenShowBarFontBlack(getWindow());
         setContentView(R.layout.activity_main);
 
         sensor = RadarSensor.getInstance();
@@ -58,11 +67,17 @@ public class HomeActivity extends AppCompatActivity {
         TextView tv = findViewById(R.id.sample_text);
         tv.setText(sensor.stringFromJNI());
 
+        ipEdt = findViewById(R.id.ip_edt);
+        portEdt = findViewById(R.id.port_edt);
+
         Intent s = new Intent(this, RadarService.class);
         bindService(s, serviceConnection, Context.BIND_AUTO_CREATE);
     }
 
-    ServiceConnection serviceConnection= new ServiceConnection() {
+    private EditText ipEdt;
+    private EditText portEdt;
+
+    ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             IRadarAidl iRadarAidl = IRadarAidl.Stub.asInterface(service);
@@ -135,26 +150,54 @@ public class HomeActivity extends AppCompatActivity {
             return;
         }
         if (executorService == null) {
+            Toast.makeText(getApplicationContext(), "executorService released", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        String ipStr = ipEdt.getText().toString();
+        if ("".equalsIgnoreCase(ipStr)) {
+            String connectedWiFiSSID = WiFiUtil.getConnectedWiFiSSID(getApplication());
+            if ("TP-LINK_280024".equalsIgnoreCase(connectedWiFiSSID)) {
+                //内网地址
+                ipStr = "192.168.0.119";
+            } else {
+                // 外网地址
+                // 外网映射到内网的 192.168.0.119:4010
+                ipStr = "192.168.1.230";
+            }
+            ipEdt.setText(ipStr);
+        } else {
+            if (!IpUtil.ipMatches(ipStr)) {
+                Toast.makeText(getApplicationContext(), "ip输入不合法", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+
+        final String conIp = ipStr;
+
+        String portStr = portEdt.getText().toString();
+        int port = 4010;
+        if ("".equalsIgnoreCase(portStr)) {
+            portEdt.setText("4010");
+        } else {
+            try {
+                port = Integer.parseInt(portStr);
+                if (port > 65535 || port < 0) {
+                    Toast.makeText(getApplicationContext(), "ip输入不合法", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                Toast.makeText(getApplicationContext(), "ip输入不合法", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        final int conPort = port;
+
         executorService.execute(new Runnable() {
             @Override
             public void run() {
                 int initialize = sensor.Initialize();
                 Tlog.v(TAG, " Initialize " + initialize);
-
-                String connectedWiFiSSID = WiFiUtil.getConnectedWiFiSSID(getApplication());
-
-                Tlog.v(TAG, " getConnectedWiFiSSID :" + connectedWiFiSSID);
-
-                if ("TP-LINK_280024".equalsIgnoreCase(connectedWiFiSSID)) {
-                    //内网地址
-                    connect = sensor.connect("192.168.0.119", 4010);
-                } else {
-                    // 外网地址
-                    // 外网映射到内网的 192.168.0.119:4010
-                    connect = sensor.connect("192.168.1.230", 4010);
-                }
+                connect = sensor.connect(conIp, conPort);
                 Tlog.v(TAG, " connect " + connect);
 
                 runOnUiThread(new Runnable() {
@@ -218,10 +261,6 @@ public class HomeActivity extends AppCompatActivity {
     public void reqData(View view) {
         if (connect != RadarSensor.RC_OK) {
             Toast.makeText(getApplicationContext(), " please connect", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (executorService == null) {
             return;
         }
         executorService.execute(new Runnable() {
@@ -451,5 +490,10 @@ public class HomeActivity extends AppCompatActivity {
     public void clear(View view) {
         CalibrationManager.clear(getApplicationContext());
         Toast.makeText(getApplicationContext(), "clear success", Toast.LENGTH_SHORT).show();
+    }
+
+    public void clearIpPort(View view) {
+        ipEdt.setText("");
+        portEdt.setText("");
     }
 }
