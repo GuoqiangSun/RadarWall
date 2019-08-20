@@ -16,10 +16,10 @@ public class BackgroundData implements Serializable {
     private final int fps = RadarSensor.MAX_FPS;
     private final int fpsCycle = 3;
 
-    private char[] avgBg = new char[size];
-    private int[] SUM = new int[size];
-    private int[] MIN = new int[size];
-    private int[] MAX = new int[size];
+    private final char[] avgBg = new char[size];
+    private final int[] SUM = new int[size];
+    private final int[] MIN = new int[size];
+    private final int[] MAX = new int[size];
     private int point = 0;
 
     public char[] getAvgBg() {

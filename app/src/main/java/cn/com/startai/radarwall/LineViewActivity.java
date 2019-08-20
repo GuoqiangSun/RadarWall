@@ -8,7 +8,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.veken.chartview.bean.ChartBean;
 import com.veken.chartview.drawtype.DrawBgType;
@@ -21,10 +20,6 @@ import com.victory.chartview.ScrollChartView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import cn.com.swain.baselib.log.Tlog;
 
 public class LineViewActivity extends AppCompatActivity {
 

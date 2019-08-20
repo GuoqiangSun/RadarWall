@@ -16,25 +16,28 @@ import cn.com.swain.baselib.log.Tlog;
  */
 public class VertexCollect implements Serializable {
 
-    private PointS[] mPointS1;
-    private int PointSAIndex;
-
-    private PointS[] mPointS2;
-    private int PointSBIndex;
-
-    private PointS[] mPointS3;
-    private int PointSCIndex;
-
-    private PointS[] mPointS4;
-    private int PointSDIndex;
+    private String TAG = "VertexCollect";
 
     private final int REMOVE = 20; // 移除 前后的个数
 
     private final int MAX_FPS = RadarSensor.MAX_FPS;
 
-    // 最小不的低于70
+    // 最小不的低于MAX_FPS
     // REMOVE*4 表示统计前后的点不要，排序后的前后点不要
     private final int MAX_SIZE = MAX_FPS * 3 + REMOVE * 4;
+
+    private final PointS[] mPointS1 = new PointS[MAX_SIZE];
+    private int PointSAIndex;
+
+    private final PointS[] mPointS2 = new PointS[MAX_SIZE];
+    private int PointSBIndex;
+
+    private final PointS[] mPointS3 = new PointS[MAX_SIZE];
+    private int PointSCIndex;
+
+    private final PointS[] mPointS4 = new PointS[MAX_SIZE];
+    private int PointSDIndex;
+
 
     /**
      * 四个顶点的数组
@@ -44,7 +47,11 @@ public class VertexCollect implements Serializable {
      * 2 ==C
      * 3 ==D
      */
-    private PointS[] PointSS = new PointS[4];
+    private final PointS[] PointSS = new PointS[]
+            {
+                    new PointS(), new PointS(),
+                    new PointS(), new PointS()
+            };
 
     public PointS[] getPointSS() {
         return PointSS;
@@ -70,14 +77,7 @@ public class VertexCollect implements Serializable {
         return PointSS[3];
     }
 
-    public VertexCollect() {
-        mPointS1 = new PointS[MAX_SIZE];
-        mPointS2 = new PointS[MAX_SIZE];
-        mPointS3 = new PointS[MAX_SIZE];
-        mPointS4 = new PointS[MAX_SIZE];
-        for (int i = 0; i < 4; i++) {
-            PointSS[i] = new PointS();
-        }
+    VertexCollect() {
     }
 
     public void resetIndex(int i) {
@@ -119,42 +119,40 @@ public class VertexCollect implements Serializable {
         }
     }
 
-    private String TAG = "VertexCollect";
-
-    public int add(PointS mPointFSerial, int i) {
+    public int add(PointS mPointS, int i) {
         switch (i) {
             case -1:
                 Tlog.v(TAG, " PointFSerial1 -1 ");
                 return -1;
             case 1:
-                addA(mPointFSerial);
+                addA(mPointS);
                 if (PointSAIndex >= MAX_SIZE) {
                     calculationPoint(mPointS1, PointSS[0]);
-                    Tlog.v(TAG, " PointFSerial1 " + PointSS[0].toString());
+                    Tlog.v(TAG, " PointS1 " + PointSS[0].toString());
                     return 1;
                 }
                 break;
             case 2:
-                addB(mPointFSerial);
+                addB(mPointS);
                 if (PointSBIndex >= MAX_SIZE) {
                     calculationPoint(mPointS2, PointSS[1]);
-                    Tlog.v(TAG, " PointFSerial2 " + PointSS[1].toString());
+                    Tlog.v(TAG, " PointS2 " + PointSS[1].toString());
                     return 2;
                 }
                 break;
             case 3:
-                addC(mPointFSerial);
+                addC(mPointS);
                 if (PointSCIndex >= MAX_SIZE) {
                     calculationPoint(mPointS3, PointSS[2]);
-                    Tlog.v(TAG, " PointFSerial3 " + PointSS[2].toString());
+                    Tlog.v(TAG, " PointS3 " + PointSS[2].toString());
                     return 3;
                 }
                 break;
             case 4:
-                addD(mPointFSerial);
+                addD(mPointS);
                 if (PointSDIndex >= MAX_SIZE) {
                     calculationPoint(mPointS4, PointSS[3]);
-                    Tlog.v(TAG, " PointFSerial4 " + PointSS[3].toString());
+                    Tlog.v(TAG, " PointS4 " + PointSS[3].toString());
                     return 4;
                 }
                 break;
@@ -246,8 +244,8 @@ public class VertexCollect implements Serializable {
         PointSDIndex++;
     }
 
-    public String PointStoString() {
-        return "[ A  " + PointSS[0].toString()
+    private String PointStoString() {
+        return "VertexCollect[ A  " + PointSS[0].toString()
                 + "B  " + PointSS[1].toString()
                 + "C  " + PointSS[2].toString()
                 + "D  " + PointSS[3].toString()

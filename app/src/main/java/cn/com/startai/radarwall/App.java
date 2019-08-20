@@ -2,6 +2,7 @@ package cn.com.startai.radarwall;
 
 import android.app.Application;
 
+import cn.com.startai.radarwall.calibration.CalibrationManager;
 import cn.com.startai.radarwall.utils.FileManager;
 import cn.com.swain.baselib.log.Tlog;
 
@@ -15,7 +16,8 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        FileManager.getInstance().init(this);
         Tlog.setDebug(true);
+        FileManager.getInstance().init(this);
+        CalibrationManager.getInstance().init(this);
     }
 }

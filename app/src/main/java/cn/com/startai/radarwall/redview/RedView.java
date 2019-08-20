@@ -82,7 +82,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                 performClick();
                 break;
             case MotionEvent.ACTION_UP:
-                touchVertex(x, y);
+//                touchVertex(x, y);
                 if (mDrawThread != null) {
                     mDrawThread.move(0, 0);
                 }
@@ -153,21 +153,21 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-    public void setCollectPointInScreen(PointS[] mPointS) {
+    public void setCollectPointInScreen(PointS[] mPoints) {
         if (mDrawThread != null) {
-            mDrawThread.setCollectPointInScreen(mPointS);
+            mDrawThread.setCollectPointInScreen(mPoints);
         }
     }
 
-    public void setVirtualScreen(PointS[] mPointS) {
+    public void setVirtualScreen(PointS[] mPoints) {
         if (mDrawThread != null) {
-            mDrawThread.setVirtualScreen(mPointS);
+            mDrawThread.setVirtualScreen(mPoints);
         }
     }
 
-    public void setVirtualScreenRect(PointS[] mPointS) {
+    public void setVirtualScreenRect(PointS[] mPoints) {
         if (mDrawThread != null) {
-            mDrawThread.setVirtualScreenRect(mPointS);
+            mDrawThread.setVirtualScreenRect(mPoints);
         }
     }
 
@@ -180,6 +180,12 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
     public void setAlgFps(int fps, int lastFps) {
         if (mDrawThread != null) {
             mDrawThread.setAlgFps(fps, lastFps);
+        }
+    }
+
+    public void setTouchFps(int fps, int lastFps) {
+        if (mDrawThread != null) {
+            mDrawThread.setTouchFps(fps, lastFps);
         }
     }
 
@@ -319,7 +325,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
         // 雷达角度
         private RectF oval = new RectF();
-        private boolean run;
+        private volatile boolean run;
 
         private int VERTEX_RADIUS = 30;
 
@@ -329,6 +335,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
         DrawThread(SurfaceHolder holder) {
             this.holder = holder;
+            this.run = true;
             init();
         }
 
@@ -347,7 +354,6 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         private void init() {
-            this.run = true;
             float density = ScreenUtils.getDensity(getContext());
             Tlog.d(TAG, " getDensity: " + density);
             VERTEX_RADIUS = ScreenUtils.dip2px(20, density);
@@ -381,12 +387,14 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         private float frameX; // canvas fps x
         private float frameY; // distance canvas fps y
         private float frameY2; //alg fps y
+        private float frameY3; //touch point fps y
 
         private final int[] locationOnScreen = new int[4];
 
         void surfaceChanged(int width, int height) {
             this.width = width;
             this.height = height;
+            Tlog.v(TAG, " DrawThread surfaceChanged() width:" + width + " height:" + height);
 
             float yd;
             if (this.width < this.height) {
@@ -400,34 +408,25 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             this.radarHeight = this.height - yd;
             this.radarBottom = this.radarTop + this.radarHeight;
 
-            this.wdr = this.radarWidth / MAX_POINT;
-            this.hdr = this.radarHeight / MAX_HEIGHT;
+            this.wdr = this.radarWidth / MAX_POINT; // x 点位数
+            this.hdr = this.radarHeight / MAX_HEIGHT; // y 距离
+            Tlog.v(TAG, " DrawThread surfaceChanged() wdr:" + wdr + " hdr:" + hdr);
+
+            this.wxr = this.radarWidth / MAX_WIDTH; // x 正方向距离
+            this.hyr = this.radarHeight / MAX_HEIGHT; //y 正方向距离
+            Tlog.v(TAG, " DrawThread surfaceChanged() wxr:" + wxr + " hyr:" + hyr);
 
             this.oval.set(-this.radarWidth, -(this.radarHeight - this.radarTop),
                     this.radarWidth, this.radarBottom);
 
-            this.mDistancePaint.setStrokeWidth(wdr);
-            this.mCoordPointPaint.setStrokeWidth(wdr);
-            this.mTouchInWallPaint.setStrokeWidth(wdr * 1.5f);
-            this.mVertexPaint.setStrokeWidth(wdr * 2);
-            this.mCoordPaint.setStrokeWidth(wdr / 2);
-            this.mArcPaint.setStrokeWidth(wdr / 2);
-            this.mBgDiffPaint.setStrokeWidth(wdr);
-            this.mTouchInScreenPaint.setStrokeWidth(wdr);
-            this.mVirtualScreenPaint.setStrokeWidth(wdr / 1.5f);
-            this.mVirtualScreenPaintRect.setStrokeWidth(wdr / 2);
-            this.mVirtualScreenA.setStrokeWidth(wdr * 2);
-
-            this.wxr = this.radarWidth / MAX_WIDTH;
-            this.hyr = this.radarHeight / MAX_HEIGHT;
+            setStrokeWidth();
 
             this.frameX1 = this.width / 10 * 1;
             this.frameX = this.width / 10 * 7;
             this.frameY = this.radarTop / 4;
             this.frameY2 = this.frameY + txtSize;
-            Tlog.v(TAG, " DrawThread surfaceChanged() width:" + width + " height:" + height);
-            Tlog.v(TAG, " DrawThread surfaceChanged() wdr:" + wdr + " hdr:" + hdr);
-            Tlog.v(TAG, " DrawThread surfaceChanged() wxr:" + wxr + " hyr:" + hyr);
+            this.frameY3 = this.frameY2 + txtSize;
+
 
             int[] locationInWindow = ScreenUtils.getLocationInWindow(RedView.this);
             Tlog.v(TAG, " window :: x:" + locationInWindow[0] + " y:" + locationInWindow[1]
@@ -479,22 +478,30 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         // 画的总次数
         private int drawFrame = 0;
 
-        private int algFps = 1;
-        private int lastAlgFps = 1;
+        private int algFps = 0;
+        private int lastAlgFps = 0;
 
-        public void setAlgFps(int fps, int lastFps) {
+        void setAlgFps(int fps, int lastFps) {
             this.algFps = fps;
             this.lastAlgFps = lastFps;
         }
 
-        private int fps = 1;
-        private int lastFps = 1;
+        private int touchFps = 0;
+        private int lastTouchFps = 0;
+
+        void setTouchFps(int fps, int lastFps) {
+            this.touchFps = fps;
+            this.lastTouchFps = lastFps;
+        }
+
+        private int fps = 0;
+        private int lastFps = 0;
         private long lastFpsTime = 0;
 
         void setPoints(int result, char[] points, boolean clearError) {
 
             long l = System.currentTimeMillis();
-            if (Math.abs(lastFpsTime - l) > 1000) {
+            if (Math.abs(lastFpsTime - l) >= 1000) {
                 lastFps = fps;
                 fps = 0;
                 lastFpsTime = l;
@@ -502,7 +509,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
             if (result == RadarSensor.RC_OK) {
                 this.distance = points;
-                this.calculation = false;
+                this.calculation = false; // 收到一包数据，重置计算
                 this.successReqFrame++;
                 this.fps++;
                 // 保留错误，多绘制几次
@@ -523,6 +530,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
         }
 
+        // 下面方法计算过
         private boolean calculation = false;
 
         private void calDrawPoint() {
@@ -563,7 +571,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
         private final PointS touchPointSInWall = new PointS();
 
-        private void setPointInWall(PointS mPointS) {
+        void setPointInWall(PointS mPointS) {
             touchPointSInWall.x = mPointS.x * wxr;
             touchPointSInWall.y = mPointS.y * hyr + radarTop;
             synchronized (syncObj) {
@@ -574,7 +582,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         private final PointS touchPointSInScreen = new PointS(NOT_DRAW_XY, NOT_DRAW_XY);
         private final PointS touchPointSInScreenOriginal = new PointS(NOT_DRAW_XY, NOT_DRAW_XY);
 
-        private void setPointInScreen(PointS mPointS) {
+        void setPointInScreen(PointS mPointS) {
             touchPointSInScreenOriginal.set(mPointS);
             touchPointSInScreen.x = mPointS.x - locationOnScreen[0];
             touchPointSInScreen.y = mPointS.y - locationOnScreen[1];
@@ -587,7 +595,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         private int[] bgDiffBuf = new int[MAX_POINT];
         private float[] drawBgDiffPoints = new float[MAX_POINT * 2];
 
-        private void bgDiff(int[] buf, int size) {
+        void bgDiff(int[] buf, int size) {
             bgDiffBuf = buf;
             for (int i = 0; i < size; i++) {
                 int diffDistance = bgDiffBuf[i];
@@ -605,7 +613,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         private PointS mMovePointS = new PointS(0, 0);
         private PointS mLastDrawPointS = new PointS(-1, -1);
 
-        private void move(float x, float y) {
+        void move(float x, float y) {
             this.mMovePointS.set(x, y);
             if (mLastDrawPointS.x != mMovePointS.x
                     || mLastDrawPointS.y != mMovePointS.y) { // 单点不要重复绘制
@@ -646,12 +654,12 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
 
         //校准点 在墙面的点
-        private void setCollectPointInWall(int i, PointS mPointS) {
+        void setCollectPointInWall(int i, PointS mPointS) {
             collectVertexXY[(i % 4) * 2] = mPointS.x * wxr;
             collectVertexXY[(i % 4) * 2 + 1] = mPointS.y * hyr + radarTop;
         }
 
-        public void setCollectPointSInWall(PointS[] mPoints) {
+        void setCollectPointSInWall(PointS[] mPoints) {
             if (mPoints == null || mPoints.length <= 0) {
                 return;
             }
@@ -668,13 +676,13 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                         NOT_DRAW_XY, NOT_DRAW_XY
                 };
 
-        public void setVirtualScreenRect(PointS[] mPointS) {
-            if (mPointS == null || mPointS.length < 4) {
+        void setVirtualScreenRect(PointS[] mPoints) {
+            if (mPoints == null || mPoints.length < 4) {
                 return;
             }
             for (int i = 0; i < 4; i++) {
-                virtualScreenRect[(i % 4) * 2] = mPointS[i].x * wxr;
-                virtualScreenRect[(i % 4) * 2 + 1] = mPointS[i].y * hyr + radarTop;
+                virtualScreenRect[(i % 4) * 2] = mPoints[i].x * wxr;
+                virtualScreenRect[(i % 4) * 2 + 1] = mPoints[i].y * hyr + radarTop;
             }
         }
 
@@ -687,61 +695,67 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                 };
 
         //校准点 在墙面的点
-        private void setVirtualScreen(PointS[] mPointS) {
-            if (mPointS == null || mPointS.length < 4) {
+        void setVirtualScreen(PointS[] mPoints) {
+            if (mPoints == null || mPoints.length < 4) {
                 return;
             }
             for (int i = 0; i < 4; i++) {
-                virtualScreen[(i % 4) * 2] = mPointS[i].x * wxr;
-                virtualScreen[(i % 4) * 2 + 1] = mPointS[i].y * hyr + radarTop;
+                virtualScreen[(i % 4) * 2] = mPoints[i].x * wxr;
+                virtualScreen[(i % 4) * 2 + 1] = mPoints[i].y * hyr + radarTop;
             }
         }
 
         // 墙上较准点在屏幕上
-        private final PointS[] collectInScreen
-                = new PointS[]{new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY),
-                new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY)};
+        private final PointS[] collectInScreen = new PointS[]
+                {
+                        new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY),
+                        new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY)
+                };
 
 
         // 墙上较准点在屏幕上
-        private final PointS[] collectInScreenOriginal
-                = new PointS[]{new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY),
-                new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY)};
+        private final PointS[] collectInScreenOriginal = new PointS[]
+                {
+                        new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY),
+                        new PointS(NOT_DRAW_XY, NOT_DRAW_XY), new PointS(NOT_DRAW_XY, NOT_DRAW_XY)
+                };
 
-        private void setCollectPointInScreen(PointS[] mPointS) {
-            if (mPointS != null && mPointS.length >= 4) {
-                collectInScreen[0].x = mPointS[0].x - locationOnScreen[0];
-                collectInScreen[0].y = mPointS[0].y - locationOnScreen[1];
+        void setCollectPointInScreen(PointS[] mPoints) {
+            if (mPoints != null && mPoints.length >= 4) {
+                collectInScreen[0].x = mPoints[0].x - locationOnScreen[0];
+                collectInScreen[0].y = mPoints[0].y - locationOnScreen[1];
 
-                collectInScreen[1].x = mPointS[1].x - locationOnScreen[0];
-                collectInScreen[1].y = mPointS[1].y - locationOnScreen[1];
+                collectInScreen[1].x = mPoints[1].x - locationOnScreen[0];
+                collectInScreen[1].y = mPoints[1].y - locationOnScreen[1];
 
-                collectInScreen[2].x = mPointS[2].x - locationOnScreen[0];
-                collectInScreen[2].y = mPointS[2].y - locationOnScreen[1];
+                collectInScreen[2].x = mPoints[2].x - locationOnScreen[0];
+                collectInScreen[2].y = mPoints[2].y - locationOnScreen[1];
 
-                collectInScreen[3].x = mPointS[3].x - locationOnScreen[0];
-                collectInScreen[3].y = mPointS[3].y - locationOnScreen[1];
+                collectInScreen[3].x = mPoints[3].x - locationOnScreen[0];
+                collectInScreen[3].y = mPoints[3].y - locationOnScreen[1];
 
-                collectInScreenOriginal[0].set(mPointS[0]);
-                collectInScreenOriginal[1].set(mPointS[1]);
-                collectInScreenOriginal[2].set(mPointS[2]);
-                collectInScreenOriginal[3].set(mPointS[3]);
+                collectInScreenOriginal[0].set(mPoints[0]);
+                collectInScreenOriginal[1].set(mPoints[1]);
+                collectInScreenOriginal[2].set(mPoints[2]);
+                collectInScreenOriginal[3].set(mPoints[3]);
             }
         }
 
         String msg;
 
-        public void showTxt(String msg) {
+        void showTxt(String msg) {
             this.msg = msg;
         }
+
+        private final PorterDuffXfermode porterDuffXfermodeClear = new PorterDuffXfermode(PorterDuff.Mode.CLEAR);
+        private final PorterDuffXfermode porterDuffXfermodeSrc = new PorterDuffXfermode(PorterDuff.Mode.SRC);
 
         // 清画布
         private void clearCanvas(Canvas canvas) {
             canvas.drawColor(Color.TRANSPARENT);
-            //清屏
-            mClearPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+            mClearPaint.setXfermode(porterDuffXfermodeClear);
             canvas.drawPaint(mClearPaint);
-            mClearPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));
+            mClearPaint.setXfermode(porterDuffXfermodeSrc);
         }
 
         @Override
@@ -809,11 +823,18 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                             mFramePaint);
                     canvas.drawText("D-FPS1:" + lastFps + "--FPS2:" + fps, frameX1, frameY, mFramePaint2);
                     canvas.drawText("A-FPS1:" + lastAlgFps + "--FPS2:" + algFps, frameX1, frameY2, mFramePaint2);
+                    canvas.drawText("P-FPS1:" + lastTouchFps + "--FPS2:" + touchFps, frameX1, frameY3, mFramePaint2);
 
                     // 画错误码
                     if (result != RadarSensor.RC_OK) {
                         canvas.drawText("ERROR::" + result, width / 2, radarTop / 2, mErrorPaint);
                     } else {
+
+                        if (Math.abs(startDrawTime - lastSelectTime) > 1500) {
+                            mVirtualScreenPaint.setColor(virtualScreenColors[++virtualScreenSelect % virtualScreenColors.length]);
+                            lastSelectTime = startDrawTime;
+                        }
+
                         if (msg != null) {
                             canvas.drawText(msg, width / 2, radarTop / 2, mErrorPaint);
                         }
@@ -839,10 +860,6 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
                     canvas.drawPoint(virtualScreen[0], virtualScreen[1], mVirtualScreenA);
 
-                    if (Math.abs(startDrawTime - lastSelectTime) > 1500) {
-                        mVirtualScreenPaint.setColor(virtualScreenColors[++virtualScreenSelect % virtualScreenColors.length]);
-                        lastSelectTime = startDrawTime;
-                    }
                     // 画墙上虚拟屏
                     canvas.drawLine(virtualScreen[0], virtualScreen[1], virtualScreen[2], virtualScreen[3], mVirtualScreenPaint);
                     canvas.drawLine(virtualScreen[2], virtualScreen[3], virtualScreen[4], virtualScreen[5], mVirtualScreenPaint);
@@ -877,7 +894,6 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                     if (mLastDrawPointS.x != 0 && mLastDrawPointS.y != 0) {
                         canvas.drawCircle(mLastDrawPointS.x, mLastDrawPointS.y, VERTEX_RADIUS, mMovePaint);
                     }
-
 
 //                    canvas.restore();
 
@@ -1019,5 +1035,20 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             mMovePaint.setFakeBoldText(true);
             mMovePaint.setTextSize(txtSize);
         }
+
+        private void setStrokeWidth() {
+            this.mDistancePaint.setStrokeWidth(wdr);
+            this.mCoordPointPaint.setStrokeWidth(wdr);
+            this.mTouchInWallPaint.setStrokeWidth(wdr * 1.5f);
+            this.mVertexPaint.setStrokeWidth(wdr * 2);
+            this.mCoordPaint.setStrokeWidth(wdr / 2);
+            this.mArcPaint.setStrokeWidth(wdr / 2);
+            this.mBgDiffPaint.setStrokeWidth(wdr);
+            this.mTouchInScreenPaint.setStrokeWidth(wdr);
+            this.mVirtualScreenPaint.setStrokeWidth(wdr / 1.5f);
+            this.mVirtualScreenPaintRect.setStrokeWidth(wdr / 2);
+            this.mVirtualScreenA.setStrokeWidth(wdr * 2);
+        }
+
     }
 }

@@ -24,28 +24,27 @@ public class WallScreen implements Serializable {
     private String TAG_SIN = "wallScreen";
 
     // 手机屏幕的校准点
-    private PointS mPhonePointA, // a 点
-            mPhonePointB, // b 点
-            mPhonePointC,// c 点
-            mPhonePointD;// d 点
+    private final PointS mPhonePointA = new PointS(); // a 点
+    private final PointS mPhonePointB = new PointS();  // b 点
+    private final PointS mPhonePointC = new PointS(); // c 点
+    private final PointS mPhonePointD = new PointS(); // d 点
 
-    private Screen mPhoneScreen, // 手机屏幕
-            mPhoneCollectScreen;// 手机校准屏幕
+    private final Screen mPhoneScreen = new Screen(); // 手机屏幕
+    private final Screen mPhoneCollectScreen = new Screen();// 手机校准屏幕
 
     // 手机校准屏幕在墙上的各点
-    private PointS mWallPointA, // a 点
-            mWallPointB, // b 点
-            mWallPointC,// c 点
-            mWallPointD,// d 点
-            mWallScreenPointA;//墙上的屏幕A
+    private final PointS mWallPointA = new PointS(); // a 点
+    private final PointS mWallPointB = new PointS(); // b 点
+    private final PointS mWallPointC = new PointS();// c 点
+    private final PointS mWallPointD = new PointS();// d 点
+    private final PointS mWallScreenPointA = new PointS();//墙上的屏幕A
 
-    private PointS mWallPhoneScreenRate; // 墙上屏幕 比 手机屏幕的比例
+    private final PointS mWallPhoneScreenRate = new PointS(); // 墙上屏幕 比 手机屏幕的比例
 
-    private Screen mWallScreen,//墙上手机屏幕
-            mWallCollectScreen; //墙上较准屏幕
+    private final Screen mWallScreen = new Screen();//墙上手机屏幕
+    private final Screen mWallCollectScreen = new Screen();//墙上较准屏幕
 
-    public WallScreen() {
-        init();
+    WallScreen() {
     }
 
     public WallScreen(PointS mPointA,
@@ -53,7 +52,6 @@ public class WallScreen implements Serializable {
                       PointS mPointC,
                       PointS mPointD,
                       PointS mPhoneScreen) {
-        init();
         set(mPointA, mPointB, mPointC, mPointD, mPhoneScreen);
     }
 
@@ -77,28 +75,6 @@ public class WallScreen implements Serializable {
         Tlog.v(TAG_SIN, " PhonePointC: " + mPointC.toString());
         Tlog.v(TAG_SIN, " PhonePointD: " + mPointD.toString());
         Tlog.v(TAG_SIN, " PointPhoneScreenRect :" + mPhoneScreen.toString());
-    }
-
-    private void init() {
-
-        this.mPhonePointA = new PointS();
-        this.mPhonePointB = new PointS();
-        this.mPhonePointC = new PointS();
-        this.mPhonePointD = new PointS();
-
-        this.mPhoneScreen = new Screen();
-        this.mPhoneCollectScreen = new Screen();
-
-        this.mWallPointA = new PointS();
-        this.mWallPointB = new PointS();
-        this.mWallPointC = new PointS();
-        this.mWallPointD = new PointS();
-        this.mWallScreenPointA = new PointS();
-
-        this.mWallScreen = new Screen();
-        this.mWallCollectScreen = new Screen();
-
-        this.mWallPhoneScreenRate = new PointS();
     }
 
     private float angleAC;
@@ -287,9 +263,9 @@ public class WallScreen implements Serializable {
     private final PointS[] pointFsVertexInScreen = new PointS[]{new PointS(), new PointS(),
             new PointS(), new PointS()};
 
-    private float[] uv = new float[8];
+    private final float[] uv = new float[8];
 
-    private final PointS middlePointF = new PointS();
+    private final PointS middlePointS = new PointS();
 
     // 转换墙上的校准点在手机屏幕上的位置
     public PointS[] calculationVertexInScreen() {
@@ -316,11 +292,11 @@ public class WallScreen implements Serializable {
             uv[i] /= 2;
         }
 
-        middlePointF.x = ((pointFsVertexInScreen[3].x - pointFsVertexInScreen[0].x)
+        middlePointS.x = ((pointFsVertexInScreen[3].x - pointFsVertexInScreen[0].x)
                 + (pointFsVertexInScreen[2].x - pointFsVertexInScreen[1].x))
                 / 2 + pointFsVertexInScreen[0].x;
 
-        middlePointF.y = ((pointFsVertexInScreen[1].y - pointFsVertexInScreen[0].y)
+        middlePointS.y = ((pointFsVertexInScreen[1].y - pointFsVertexInScreen[0].y)
                 + (pointFsVertexInScreen[2].y - pointFsVertexInScreen[3].y))
                 / 2 + pointFsVertexInScreen[0].y;
 
@@ -360,16 +336,16 @@ public class WallScreen implements Serializable {
     private final int limit = 10;
 
     private void scale(PointS screenP) {
-        if (screenP.x < (middlePointF.x - limit) && screenP.y < (middlePointF.y - limit)) {
+        if (screenP.x < (middlePointS.x - limit) && screenP.y < (middlePointS.y - limit)) {
             screenP.x += uv[0];
             screenP.y += uv[1];
-        } else if (screenP.x < (middlePointF.x - limit) && screenP.y > (middlePointF.y + limit)) {
+        } else if (screenP.x < (middlePointS.x - limit) && screenP.y > (middlePointS.y + limit)) {
             screenP.x += uv[2];
             screenP.y += uv[3];
-        } else if (screenP.x > (middlePointF.x + limit) && screenP.y > (middlePointF.y + limit)) {
+        } else if (screenP.x > (middlePointS.x + limit) && screenP.y > (middlePointS.y + limit)) {
             screenP.x += uv[4];
             screenP.y += uv[5];
-        } else if (screenP.x > (middlePointF.x + limit) && screenP.y < (middlePointF.y - limit)) {
+        } else if (screenP.x > (middlePointS.x + limit) && screenP.y < (middlePointS.y - limit)) {
             screenP.x += uv[6];
             screenP.y += uv[7];
         }

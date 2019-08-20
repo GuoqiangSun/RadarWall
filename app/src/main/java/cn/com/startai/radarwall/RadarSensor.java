@@ -1,6 +1,5 @@
 package cn.com.startai.radarwall;
 
-
 import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,7 +30,13 @@ public class RadarSensor {
     private ExecutorService executorService;
 
     public synchronized ExecutorService initPool() {
-        this.executorService = Executors.newFixedThreadPool(70);
+        if (executorService == null) {
+            synchronized (RadarSensor.this) {
+                if (executorService == null) {
+                    this.executorService = Executors.newFixedThreadPool(70);
+                }
+            }
+        }
         return this.executorService;
     }
 
@@ -43,7 +48,7 @@ public class RadarSensor {
     }
 
     public ExecutorService getExecutorService() {
-        return executorService;
+        return initPool();
     }
 
     // Used to load the 'native-lib' library on application startup.
@@ -78,13 +83,13 @@ public class RadarSensor {
             104.10f, 104.50f, 104.90f, 105.30f, 105.71f, 106.12f, 106.53f, 106.94f, 107.36f, 107.78f};
 
 
-    public static void reserveBuf(char[] chars) {
-//        char t;
-//        for (int i = 0; i < chars.length / 2; i++) {
-//            t = chars[i];
-//            chars[i] = chars[chars.length - 1 - i];
-//            chars[chars.length - 1 - i] = t;
-//        }
+    private static void reserveBuf(char[] chars) {
+        char t;
+        for (int i = 0; i < chars.length / 2; i++) {
+            t = chars[i];
+            chars[i] = chars[chars.length - 1 - i];
+            chars[chars.length - 1 - i] = t;
+        }
     }
 
     public static final int RC_DEFAULT = -2;
@@ -115,7 +120,7 @@ public class RadarSensor {
         return Initialize(allocate);
     }
 
-    public native int Initialize(ByteBuffer allocate);
+    private native int Initialize(ByteBuffer allocate);
 
     public native void Uninitialize();
 
@@ -155,26 +160,28 @@ public class RadarSensor {
 
     protected final void callBack(char[] buf, int size, int result) {
         if (mDataCallBack != null) {
+            //            reserveBuf(buf);
             mDataCallBack.onPositionData(buf, size, result);
         } else {
             Tlog.v(TAG, " callBack()  mDataCallBack==null :: " + result);
         }
     }
 
+    private static void byteToChar(byte[] array, char[] charBuf, int size) {
+        for (int i = 0; i < size; i++) {
+            charBuf[i] = (char) (((array[i * 2] & 0xFF) << 8) | (array[i * 2 + 1] & 0xFF));
+        }
+    }
 
     protected final void callBackCharBuffer(int size, int result) {
         if (mDataCallBack != null) {
-            byte[] array = allocate.array();
-//            allocate.asCharBuffer().array();
-            for (int i = 0; i < size; i++) {
-                charBuf[i] = (char) (((array[i * 2] & 0xFF) << 8) | (array[i * 2 + 1] & 0xFF));
-            }
+            byteToChar(allocate.array(), charBuf, size);
+//            reserveBuf(charBuf);
             mDataCallBack.onPositionData(charBuf, FRAME_DATA_SIZE, result);
         } else {
             Tlog.v(TAG, " callBackCharBuffer()  mDataCallBack==null :: " + result);
         }
     }
-
 
     private IDataCallBack mDataCallBack;
 

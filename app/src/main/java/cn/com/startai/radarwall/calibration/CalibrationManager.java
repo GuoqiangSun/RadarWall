@@ -1,13 +1,12 @@
 package cn.com.startai.radarwall.calibration;
 
+import android.app.Application;
 import android.content.Context;
 
-import java.io.File;
-import java.io.Serializable;
-
+import cn.com.swain.baselib.alg.PointS;
+import cn.com.swain.baselib.app.IApp.IApp;
 import cn.com.swain.baselib.app.utils.DataCleanManager;
 import cn.com.swain.baselib.clone.SerialManager;
-import cn.com.swain.baselib.alg.PointS;
 import cn.com.swain.baselib.log.Tlog;
 
 /**
@@ -15,85 +14,91 @@ import cn.com.swain.baselib.log.Tlog;
  * date 2019/8/11
  * desc
  */
-public class CalibrationManager implements Serializable {
+public class CalibrationManager implements IApp {
 
-    private static final String TAG = "Calibration";
+    public static final String TAG = "Calibration";
 
     public static void save(Context ctx) {
-        CalibrationManager instance = getInstance();
-        boolean calibrationManager = SerialManager.saveObj(ctx, instance, "CalibrationManager");
-        String msg = instance == null ? "null" : instance.toString();
-        Tlog.v(TAG, "CalibrationManager save:" + calibrationManager + " : " + msg);
+        Calibration mCalibration = getInstance().mCalibration;
+        Tlog.v(TAG, " CalibrationManager save: " + mCalibration);
+        if (mCalibration != null) {
+            boolean flag = SerialManager.saveObj(mCalibration, ctx, "CalibrationManager.java");
+            Tlog.v(TAG, " CalibrationManager save: " + flag);
+        }
     }
 
-    public static void get(Context ctx) {
-
-        mCalibrationManager = (CalibrationManager) SerialManager.getObj(ctx, "CalibrationManager");
-        String msg = mCalibrationManager == null ? "null" : mCalibrationManager.toString();
-        Tlog.v(TAG, "CalibrationManager get: " + msg);
-
+    @Override
+    public void init(Application app) {
+        if (mCalibration == null) {
+            Object obj = SerialManager.getObj(app.getApplicationContext(), "CalibrationManager.java");
+            Tlog.v(TAG, " CalibrationManager init: " + obj);
+            if (!(obj instanceof Calibration)) {
+                obj = new Calibration();
+            }
+            setCalibration((Calibration) obj);
+        }
     }
 
     public static void clear(Context ctx) {
         DataCleanManager.cleanInternalCache(ctx);
     }
 
-    @Override
-    public String toString() {
-        return "hashcode:" + hashCode() + " createTimes:" + createTime;
+    private Calibration mCalibration;
+
+    private void setCalibration(Calibration mCalibration) {
+        this.mCalibration = mCalibration;
     }
 
-    private final Calibration mCalibration;
+    private Calibration getCalibration() {
+        return mCalibration;
+    }
+
     private final long createTime;
 
     private CalibrationManager() {
-        mCalibration = new Calibration();
         createTime = System.currentTimeMillis();
-        Tlog.v(TAG, " new CalibrationManager() createTime:" + createTime);
+        Tlog.v(TAG, " new CalibrationManager() :: " + toString());
     }
 
-    private volatile static CalibrationManager mCalibrationManager;
+    private static class ClassHolder {
+        private static final CalibrationManager mCalibrationManager = new CalibrationManager();
+    }
 
     public static CalibrationManager getInstance() {
-        if (mCalibrationManager == null) {
-            synchronized (CalibrationManager.class) {
-                if (mCalibrationManager == null) {
-                    mCalibrationManager = new CalibrationManager();
-                }
-            }
-        }
-        return mCalibrationManager;
-    }
-
-    private Object readResolve() {
-        return mCalibrationManager;
+        return ClassHolder.mCalibrationManager;
     }
 
     public void setPositionData(int result, char[] buf) {
-        mCalibration.setPositionData(result, buf);
+        getCalibration().setPositionData(result, buf);
     }
 
     public void setCollectPoint(PointS a, PointS b, PointS c, PointS d, PointS s) {
-        mCalibration.setCollectPoint(a, b, c, d, s);
+        getCalibration().setCollectPoint(a, b, c, d, s);
     }
 
     public void start() {
-        mCalibration.start();
+        getCalibration().start();
     }
 
     public void stop() {
-        mCalibration.stop();
+        getCalibration().stop();
     }
 
     public void setCollectIndex(int i) {
-        mCalibration.setCollectIndex(i);
+        getCalibration().setCollectIndex(i);
     }
 
     public void setCalibrationCallBack(Calibration.ICalibrationCallBack mCallBack) {
-        mCalibration.setCalibrationCallBack(mCallBack);
+        getCalibration().setCalibrationCallBack(mCallBack);
     }
 
     public void setIVertexFinish(Calibration.IVertexFinish mVertexFinish) {
-        mCalibration.setIVertexFinish(mVertexFinish);
+        getCalibration().setIVertexFinish(mVertexFinish);
     }
+
+    @Override
+    public String toString() {
+        return "CalibrationManager[hashcode:" + hashCode() + " createTimes:" + createTime + "] mCalibration=" + (mCalibration);
+    }
+
 }

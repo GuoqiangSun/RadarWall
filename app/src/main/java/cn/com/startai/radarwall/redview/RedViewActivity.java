@@ -1,25 +1,19 @@
 package cn.com.startai.radarwall.redview;
 
-import android.content.Context;
 import android.graphics.PointF;
-import android.hardware.input.InputManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
-import android.view.InputEvent;
-import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.concurrent.ExecutorService;
 
-import cn.com.startai.radarwall.RadarSensor;
 import cn.com.startai.radarwall.R;
+import cn.com.startai.radarwall.RadarSensor;
 import cn.com.startai.radarwall.calibration.Calibration;
 import cn.com.startai.radarwall.calibration.CalibrationManager;
 import cn.com.swain.baselib.alg.PointS;
@@ -86,14 +80,13 @@ public class RedViewActivity extends AppCompatActivity {
 
         mRedView.setVertex(A, B, C, D);
 
-        CalibrationManager.get(getApplicationContext());
         CalibrationManager.getInstance().setCollectPoint(A, B, C, D, S);
         CalibrationManager.getInstance().setCalibrationCallBack(mICalibrationCallBack);
         CalibrationManager.getInstance().setIVertexFinish(mIVertexFinish);
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                CalibrationManager.getInstance().start();
+                CalibrationManager.getInstance().start(); // 等redView初始化完再运行
             }
         }, 1000);
 
@@ -155,9 +148,6 @@ public class RedViewActivity extends AppCompatActivity {
             return;
         }
         ExecutorService executorService = sensor.getExecutorService();
-        if (executorService == null) {
-            return;
-        }
         executorService.execute(new Runnable() {
             @Override
             public void run() {
@@ -198,7 +188,7 @@ public class RedViewActivity extends AppCompatActivity {
 
     private Calibration.IVertexFinish mIVertexFinish = new Calibration.IVertexFinish() {
         @Override
-        public void onCollectPointInWall(int i, PointS mPointF) {
+        public void onCollectPointInWall(int i, PointS mPointS) {
             final int show = i + 1;
             runOnUiThread(new Runnable() {
                 @Override
@@ -209,13 +199,13 @@ public class RedViewActivity extends AppCompatActivity {
                 }
             });
             if (mRedView != null) {
-                mRedView.setCollectPointInWall(i, mPointF);
+                mRedView.setCollectPointInWall(i, mPointS);
             }
         }
 
 
         @Override
-        public void onCollectPointInWall(PointS[] mPointFs) {
+        public void onCollectPointInWall(PointS[] mPointSs) {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -225,21 +215,21 @@ public class RedViewActivity extends AppCompatActivity {
                 }
             });
             if (mRedView != null) {
-                mRedView.setCollectPointSInWall(mPointFs);
+                mRedView.setCollectPointSInWall(mPointSs);
             }
         }
 
         @Override
-        public void onVirtualScreen(PointS[] mPointFs) {
+        public void onVirtualScreen(PointS[] mPointSs) {
             if (mRedView != null) {
-                mRedView.setVirtualScreen(mPointFs);
+                mRedView.setVirtualScreen(mPointSs);
             }
         }
 
         @Override
-        public void onVirtualScreenRect(PointS[] mPointFs) {
+        public void onVirtualScreenRect(PointS[] mPointSs) {
             if (mRedView != null) {
-                mRedView.setVirtualScreenRect(mPointFs);
+                mRedView.setVirtualScreenRect(mPointSs);
             }
         }
 
@@ -251,8 +241,8 @@ public class RedViewActivity extends AppCompatActivity {
         }
 
         @Override
-        public void onCollectPointInScreen(PointS[] mPointF) {
-            mRedView.setCollectPointInScreen(mPointF);
+        public void onCollectPointInScreen(PointS[] mPointSs) {
+            mRedView.setCollectPointInScreen(mPointSs);
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -267,16 +257,16 @@ public class RedViewActivity extends AppCompatActivity {
 
     private Calibration.ICalibrationCallBack mICalibrationCallBack = new Calibration.ICalibrationCallBack() {
         @Override
-        public void onTouchPointInScreen(PointS mPointF) {
+        public void onTouchPointInScreen(PointS mPointS) {
             if (mRedView != null) {
-                mRedView.setPointInScreen(mPointF);
+                mRedView.setPointInScreen(mPointS);
             }
         }
 
         @Override
-        public void onTouchPointInWall(PointS pointF) {
+        public void onTouchPointInWall(PointS mPointS) {
             if (mRedView != null) {
-                mRedView.setPointInWall(pointF);
+                mRedView.setPointInWall(mPointS);
             }
         }
 
@@ -305,6 +295,13 @@ public class RedViewActivity extends AppCompatActivity {
         public void onFps(int fps, int lastFps) {
             if (mRedView != null) {
                 mRedView.setAlgFps(fps, lastFps);
+            }
+        }
+
+        @Override
+        public void onTouchFps(int fps, int lastFps) {
+            if (mRedView != null) {
+                mRedView.setTouchFps(fps, lastFps);
             }
         }
     };

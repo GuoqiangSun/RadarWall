@@ -19,17 +19,15 @@ import cn.com.swain.baselib.log.Tlog;
  */
 public class Calibration implements Runnable, Serializable {
 
-    private String TAG = "Calibration";
+    private final String TAG = CalibrationManager.TAG;
 
     private String TAG_LARG = "distance";
-
 
     // 可以校准
     private boolean canCalibration;
 
     // 校准成功
     private boolean calibrationFinish;
-
 
     private final int SIZE = RadarSensor.FRAME_DATA_SIZE;
     private final int MAX_DISTANCE = RadarSensor.MAX_DISTANCE;
@@ -40,11 +38,26 @@ public class Calibration implements Runnable, Serializable {
     private final int AVAILABLE_TOUCH_LENGTH = DATA_HZ / TOUCH_FPS;
     private final int clearPS = Math.min(Math.max(AVAILABLE_TOUCH_LENGTH / 2, 1), 5);
 
-    private ExecutorService executorService;
+    private transient ExecutorService executorService;
 
     private WallScreen mWallScreen;
+    private VertexCollect mVertexCollect;
+    private BackgroundData mBackgroundData;
 
     private PointS[] mAvailableTouchPointInScreen;
+    private final long createTime;
+
+    private transient ICalibrationCallBack mCallBack;
+
+    public void setCalibrationCallBack(ICalibrationCallBack mCallBack) {
+        this.mCallBack = mCallBack;
+    }
+
+    private transient IVertexFinish mVertexFinish;
+
+    public void setIVertexFinish(IVertexFinish mVertexFinish) {
+        this.mVertexFinish = mVertexFinish;
+    }
 
     Calibration() {
         this.mWallScreen = new WallScreen();
@@ -61,7 +74,8 @@ public class Calibration implements Runnable, Serializable {
         for (int i = 0; i < AVAILABLE_TOUCH_LENGTH; i++) {
             mAvailableTouchPointInScreen[i] = new PointS();
         }
-        Tlog.v(TAG, " new Calibration() createTime:" + System.currentTimeMillis());
+        createTime = System.currentTimeMillis();
+        Tlog.v(TAG, " new Calibration() :: " + toString());
     }
 
     public Calibration(PointS mPointA,
@@ -81,8 +95,6 @@ public class Calibration implements Runnable, Serializable {
         this.mWallScreen.set(mPointA, mPointB, mPointC, mPointD, mPhoneScreen);
         this.canCalibration = true;
     }
-
-    private VertexCollect mVertexCollect;
 
     public void start() {
         if (this.run) {
@@ -110,10 +122,9 @@ public class Calibration implements Runnable, Serializable {
         }
     }
 
-    private BackgroundData mBackgroundData;
     private final Object synObj = new byte[1];
 
-    private boolean run;
+    private volatile boolean run;
 
     private char[] BG;
 
@@ -124,6 +135,17 @@ public class Calibration implements Runnable, Serializable {
         collectIndex = i;
         if (mVertexCollect != null) {
             mVertexCollect.resetIndex(i);
+        }
+    }
+
+    private char[] mBuf;
+
+    public void setPositionData(int result, char[] buf) {
+        if (result == RadarSensor.RC_OK) {
+            this.mBuf = buf;
+            synchronized (synObj) {
+                synObj.notify();
+            }
         }
     }
 
@@ -169,7 +191,6 @@ public class Calibration implements Runnable, Serializable {
             }
 
             // 先把数据copy出来,避免计算时，数组内容被重置
-//            System.arraycopy(buf, 0, mDistanceBuf, 0, SIZE);
             mDistanceBuf = mBuf;
 
             if (mDistanceBuf == null) {
@@ -177,14 +198,14 @@ public class Calibration implements Runnable, Serializable {
                 continue;
             }
 
-            fps();
+            runFps();
 
-            if (!calculationBg(mDistanceBuf)) {
-                Tlog.i(TAG, " calculation Background data ... ");
+            if (!countBg(mDistanceBuf)) {
+                Tlog.i(TAG, " count Background data ... ");
             }
 
             // 计算 测试数据 和 背景数据的 差值
-            // 并求差值中的最大值
+            // 并求差值中的极值
 //            Arrays.stream(mDiffBuf).max().getAsInt();
             int availableSize = obstacleIndex(mDiffBuf, BG, mDistanceBuf, mAvailableIndexBuf);
             if (this.mCallBack != null) {
@@ -220,7 +241,6 @@ public class Calibration implements Runnable, Serializable {
 
             if (!calibrationFinish) {
                 if (canCalibration && calculationVertex(touchPointSInWall) >= 4) {
-                    Tlog.e(TAG, " calibrationFinish " + mVertexCollect.PointStoString());
                     calibrationFinish = true;
                     collectIndex = -1;
                     mVertexCollect.calculationABCD();
@@ -244,13 +264,14 @@ public class Calibration implements Runnable, Serializable {
         Tlog.e(TAG, " Calibration run finish ");
     }
 
-    private int fps = 1;
-    private int lastFps = 1;
+    private int fps = 0;
+    private int lastFps = 0;
     private long lastFpsTime = 0;
 
-    private void fps() {
+    // 算法运行的帧率
+    private void runFps() {
         long l = System.currentTimeMillis();
-        if (Math.abs(lastFpsTime - l) > 1000) {
+        if (Math.abs(lastFpsTime - l) >= 1000) {
             lastFps = fps;
             fps = 0;
             lastFpsTime = l;
@@ -286,11 +307,30 @@ public class Calibration implements Runnable, Serializable {
             if (mCallBack != null) {
                 mCallBack.onTouchPointInScreen(avgPoints);
             }
+            touchFps();
         }
     }
 
-    private int calculationVertex(PointS touchPointFSerial) {
-        int add = mVertexCollect.add(touchPointFSerial, collectIndex);
+    private int touchFps = 0;
+    private int lastTouchFps = 0;
+    private long lastTouchFpsTime = 0;
+
+    // 触摸点的帧率
+    private void touchFps() {
+        long l = System.currentTimeMillis();
+        if (Math.abs(lastTouchFpsTime - l) >= 1000) {
+            lastTouchFps = touchFps;
+            touchFps = 0;
+            lastTouchFpsTime = l;
+        }
+        touchFps++;
+        if (mCallBack != null) {
+            mCallBack.onTouchFps(touchFps, lastTouchFps);
+        }
+    }
+
+    private int calculationVertex(PointS touchPointS) {
+        int add = mVertexCollect.add(touchPointS, collectIndex);
         switch (add) {
             case -1:
                 Tlog.i(TAG, " calculation vertex data ...");
@@ -325,7 +365,7 @@ public class Calibration implements Runnable, Serializable {
 
     }
 
-    private boolean calculationBg(char[] mDistanceBuf) {
+    private boolean countBg(char[] mDistanceBuf) {
         if (mBackgroundData.countBGFinish()) {
             return true;
         }
@@ -338,19 +378,8 @@ public class Calibration implements Runnable, Serializable {
         return collect;
     }
 
-    private char[] mBuf;
-
-    public void setPositionData(int result, char[] buf) {
-        if (result == RadarSensor.RC_OK) {
-            this.mBuf = buf;
-            synchronized (synObj) {
-                synObj.notify();
-            }
-        }
-    }
-
     // 计算触摸点在墙上的xy
-    private void calculationTouchPoint(PointS touchPointFSerial, int[] mAvailableIndexBuf,
+    private void calculationTouchPoint(PointS touchPointS, int[] mAvailableIndexBuf,
                                        int availableSize, char[] mDistanceBuf) {
         float totalDegree = 0;
         float totalDistance = 0;
@@ -362,12 +391,12 @@ public class Calibration implements Runnable, Serializable {
 
         float avgDegree = totalDegree / availableSize;
         float avgDistance = totalDistance / availableSize;
-        touchPointFSerial.x = (float) (avgDistance * MathUtils.sin(avgDegree));
-        touchPointFSerial.y = (float) (avgDistance * MathUtils.cos(avgDegree));
+        touchPointS.x = (float) (avgDistance * MathUtils.sin(avgDegree));
+        touchPointS.y = (float) (avgDistance * MathUtils.cos(avgDegree));
 
         Tlog.v(TAG, " totalDegree: " + totalDegree + " avgDegree:" + avgDegree);
         Tlog.v(TAG, " totalDistance: " + totalDistance + " avgDistance:" + avgDistance);
-        Tlog.v(TAG, " touchPoint: " + touchPointFSerial.toString());
+        Tlog.v(TAG, " touchPoint: " + touchPointS.toString());
 
     }
 
@@ -383,7 +412,7 @@ public class Calibration implements Runnable, Serializable {
     /**
      * 求buf最大值的下标
      */
-    public int obstacleIndex(int[] diff, char[] bg, char[] mDistanceBuf, int[] mAvailableIndexBuf) {
+    private int obstacleIndex(int[] diff, char[] bg, char[] mDistanceBuf, int[] mAvailableIndexBuf) {
         int maxAvailable = 0;
         int mAvailableSize = -1;
 
@@ -451,7 +480,7 @@ public class Calibration implements Runnable, Serializable {
     private final int RANGE = 220; // 单位 nm
 
     // 取有效点左右 RANGE的点为 有效范围
-    public int availableData(int availableIndex, char[] mDistanceBuf, int[] mAvailableIndexBuf) {
+    private int availableData(int availableIndex, char[] mDistanceBuf, int[] mAvailableIndexBuf) {
 
         int availableDistance = mDistanceBuf[availableIndex];
         int minAvailableDistance = availableDistance - RANGE;
@@ -507,48 +536,42 @@ public class Calibration implements Runnable, Serializable {
         return point;
     }
 
-    private ICalibrationCallBack mCallBack;
-
-    public void setCalibrationCallBack(ICalibrationCallBack mCallBack) {
-        this.mCallBack = mCallBack;
-    }
-
     public interface ICalibrationCallBack {
 
-        void onTouchPointInScreen(PointS mPointFSerial);
+        void onTouchPointInScreen(PointS mPointS);
 
-        void onTouchPointInWall(PointS PointFSerial);
+        void onTouchPointInWall(PointS mPointS);
 
         void onWallBG(char[] buf);
 
         void onWallBGDiff(int[] buf, int size);
 
         void onFps(int fps, int lastFps);
+
+        void onTouchFps(int fps, int lastFps);
     }
 
-    private IVertexFinish mVertexFinish;
-
-    public void setIVertexFinish(IVertexFinish mVertexFinish) {
-        this.mVertexFinish = mVertexFinish;
-    }
 
     public interface IVertexFinish {
 
         // 校准单点
-        void onCollectPointInWall(int i, PointS mPointFSerial);
+        void onCollectPointInWall(int i, PointS mPointS);
 
         // 校准四点
-        void onCollectPointInWall(PointS[] mPointFSerials);
+        void onCollectPointInWall(PointS[] mPointSs);
 
-        void onCollectPointInScreen(PointS[] mPointFSerial);
+        void onCollectPointInScreen(PointS[] mPointSs);
 
-        void onVirtualScreen(PointS[] mPointFSerials);
+        void onVirtualScreen(PointS[] mPointSs);
 
-        void onVirtualScreenRect(PointS[] mPointFSerials);
+        void onVirtualScreenRect(PointS[] mPointSs);
 
         void showTxt(String msg);
 
     }
 
-
+    @Override
+    public String toString() {
+        return "Calibration[hashcode:" + hashCode() + " createTimes:" + createTime + "]";
+    }
 }
