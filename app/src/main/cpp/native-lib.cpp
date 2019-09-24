@@ -24,6 +24,13 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     return JNI_VERSION_1_4;
 }
 
+int64_t getCurrentTime()      //直接调用这个函数就行了，返回值最好是int64_t，long long应该也可以
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);    //该函数在sys/time.h头文件中
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
 void GetOneFrame(lt602::ResultCode rc, lt602::uint16 *data, int size, JNIEnv *evn) {
 
 //	TLOGV( " getOneFrame size : %d ", size);
@@ -37,10 +44,12 @@ void GetOneFrame(lt602::ResultCode rc, lt602::uint16 *data, int size, JNIEnv *ev
         evn->CallVoidMethod(globalObj, callBackCharBufferId, size, rc);
 
     } else {
-        jcharArray array = evn->NewCharArray(size);
-        evn->SetCharArrayRegion(array, 0, size, data);
-        evn->CallVoidMethod(globalObj, callBackId, array, size, rc);
-        evn->DeleteLocalRef(array);
+        if (callBackId != nullptr) {
+            jcharArray array = evn->NewCharArray(size);
+            evn->SetCharArrayRegion(array, 0, size, data);
+            evn->CallVoidMethod(globalObj, callBackId, array, size, rc);
+            evn->DeleteLocalRef(array);
+        }
     }
 
 //    jbyteArray array = evn->NewByteArray( size);
@@ -245,7 +254,7 @@ Java_cn_com_startai_radarwall_RadarSensor_acquirePositionDataArray(JNIEnv *env, 
 }
 
 
-int flag = 0;
+volatile int flag = 0;
 
 void *always(void *arg) {
 
@@ -260,14 +269,34 @@ void *always(void *arg) {
     int length = 320;
     lt602::ResultCode rc;
     const int hz = 70;
-    useconds_t sleep = 1000 / hz;
+    const int us = 1000 * 1000;
+    useconds_t sleep = us / hz;
+    TLOGD(" useconds_t sleep %d ", sleep);
+
+    struct timeval tv;
+    struct timeval tv2;
 
     int frame = 0;
     while (flag) {
+
+        gettimeofday(&tv, NULL);    //该函数在sys/time.h头文件中
+        int64_t t1 = tv.tv_sec * us + tv.tv_usec;
+        TLOGD(" acquireDistanceData startTime : %ld", t1);
+
         rc = sensor.acquireDistanceData(data, &length);
         frame++;
         GetOneFrame(rc, data, 320, evn);
-        usleep(sleep);
+
+        gettimeofday(&tv2, NULL);    //该函数在sys/time.h头文件中
+        int64_t t2 = tv2.tv_sec * us + tv2.tv_usec;
+        TLOGD(" acquireDistanceData endTime : %ld", t2);
+
+        int64_t msleep = sleep - (t2 - t1);
+        TLOGD(" acquireDistanceData useTime : %ld", msleep);
+
+        if (msleep > 0) {
+            usleep(msleep);
+        }
         TLOGD(" data acquired result %d :%d", rc, frame);
     }
     TLOGD(" DetachCurrentThread ");
@@ -306,14 +335,7 @@ Java_cn_com_startai_radarwall_RadarSensor_stopAlwaysAcquirePositionData(JNIEnv *
     flag = 0;
 }
 
-int64_t getCurrentTime()      //直接调用这个函数就行了，返回值最好是int64_t，long long应该也可以
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);    //该函数在sys/time.h头文件中
-    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
-
-int shell(const char *cmd){
+int shell(const char *cmd) {
 
     int64_t time1 = getCurrentTime();
     TLOGD(" shell startTime : %ld", time1);
@@ -333,7 +355,7 @@ Java_cn_com_startai_radarwall_RadarSensor_shell(JNIEnv *env, jobject instance, j
     TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_shell ");
     TLOGD(" shell : %s", cmd);
     // TODO
-    int i =shell(cmd);
+    int i = shell(cmd);
     env->ReleaseStringUTFChars(cmd_, cmd);
 
     return i;
@@ -346,7 +368,7 @@ Java_cn_com_startai_radarwall_RadarSensor_tapxy(JNIEnv *env, jobject instance, j
     // TODO
     TLOGD(" Java_cn_com_startai_radarwall_RadarSensor_tapxy %d,%d", x, y);
     char output[20];
-    sprintf(output, "input tap %d %d", x,y);
-    TLOGV(" tapxy:: %s ",output);
+    sprintf(output, "input tap %d %d", x, y);
+    TLOGV(" tapxy:: %s ", output);
     shell(output);
 }

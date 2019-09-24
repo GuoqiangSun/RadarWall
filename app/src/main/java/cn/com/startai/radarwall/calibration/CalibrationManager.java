@@ -3,6 +3,7 @@ package cn.com.startai.radarwall.calibration;
 import android.app.Application;
 import android.content.Context;
 
+import cn.com.startai.radarwall.utils.InjectInputPointManager;
 import cn.com.swain.baselib.alg.PointS;
 import cn.com.swain.baselib.app.IApp.IApp;
 import cn.com.swain.baselib.app.utils.DataCleanManager;
@@ -41,6 +42,7 @@ public class CalibrationManager implements IApp {
 
     public static void clear(Context ctx) {
         DataCleanManager.cleanInternalCache(ctx);
+        getInstance().setCalibration(new Calibration());
     }
 
     private Calibration mCalibration;
@@ -60,7 +62,11 @@ public class CalibrationManager implements IApp {
         Tlog.v(TAG, " new CalibrationManager() :: " + toString());
     }
 
-    private static class ClassHolder {
+    public void resetBG() {
+        getCalibration().resetBG();
+    }
+
+    private static final class ClassHolder {
         private static final CalibrationManager mCalibrationManager = new CalibrationManager();
     }
 
@@ -77,12 +83,15 @@ public class CalibrationManager implements IApp {
     }
 
     public void start() {
+        InjectInputPointManager.getInstance().start();
         getCalibration().start();
     }
 
     public void stop() {
+        InjectInputPointManager.getInstance().stop();
         getCalibration().stop();
     }
+
 
     public void setCollectIndex(int i) {
         getCalibration().setCollectIndex(i);

@@ -71,29 +71,9 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-
-        float x = event.getX();
-        float y = event.getY();
-        int action = event.getAction();
-        Tlog.v(TAG, " RedView onTouchEvent x:" + x + " y:" + y + " action:" + action);
-        switch (action) {
-            case MotionEvent.ACTION_DOWN:
-                // 如果点击
-                performClick();
-                break;
-            case MotionEvent.ACTION_UP:
-//                touchVertex(x, y);
-                if (mDrawThread != null) {
-                    mDrawThread.move(0, 0);
-                }
-                break;
-            case MotionEvent.ACTION_MOVE:
-                if (mDrawThread != null) {
-                    mDrawThread.move(x, y);
-                }
-                break;
+        if (mDrawThread != null) {
+            mDrawThread.move(event);
         }
-
         return super.onTouchEvent(event);
     }
 
@@ -277,6 +257,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private static final int MAX_SWEEP_ANGLE = RadarSensor.MAX_SWEEP_ANGLE;
+    private static final float[] DEGREE = RadarSensor.DEGREE;
 
     private static final int MAX_POINT = RadarSensor.FRAME_DATA_SIZE;
 
@@ -302,10 +283,14 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         private Paint mCoordPointPaint = new Paint();
         // 清除画笔
         private Paint mClearPaint = new Paint();
-        // 手指在屏幕上移动的画笔
-        private Paint mMovePaint = new Paint();
+        // 画手机触摸点
+        private Paint mEventPaint = new Paint();
+        // 画手机上的屏幕校准点
+        private Paint mPhoneVertexPaint = new Paint();
         // 雷达角度画笔
         private Paint mArcPaint = new Paint();
+        // 雷达角度画笔
+        private Paint mDegreePaint = new Paint();
         // 在墙上触摸的画笔
         private Paint mTouchInWallPaint = new Paint();
         //背景差值画笔
@@ -388,8 +373,9 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
         private float frameY; // distance canvas fps y
         private float frameY2; //alg fps y
         private float frameY3; //touch point fps y
+        private float frameY4; //event point fps y
 
-        private final int[] locationOnScreen = new int[4];
+        private final int[] locationOnScreen = new int[2];
 
         void surfaceChanged(int width, int height) {
             this.width = width;
@@ -423,18 +409,17 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
 
             this.frameX1 = this.width / 10 * 1;
             this.frameX = this.width / 10 * 7;
-            this.frameY = this.radarTop / 4;
+            this.frameY = this.radarTop / 7;
             this.frameY2 = this.frameY + txtSize;
             this.frameY3 = this.frameY2 + txtSize;
+            this.frameY4 = this.frameY3 + txtSize;
 
 
             int[] locationInWindow = ScreenUtils.getLocationInWindow(RedView.this);
-            Tlog.v(TAG, " window :: x:" + locationInWindow[0] + " y:" + locationInWindow[1]
-                    + " w:" + locationInWindow[2] + " h:" + locationInWindow[3]);
+            Tlog.v(TAG, " window :: x:" + locationInWindow[0] + " y:" + locationInWindow[1]);
 
             ScreenUtils.getLocationOnScreen(RedView.this, locationOnScreen);
-            Tlog.v(TAG, " screen :: x:" + locationOnScreen[0] + " y:" + locationOnScreen[1]
-                    + " w:" + locationOnScreen[2] + " h:" + locationOnScreen[3]);
+            Tlog.v(TAG, " screen :: x:" + locationOnScreen[0] + " y:" + locationOnScreen[1]);
 
             vertexA.set(A.x - locationOnScreen[0], A.y - locationOnScreen[1]);
             vertexB.set(B.x - locationOnScreen[0], B.y - locationOnScreen[1]);
@@ -493,6 +478,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             this.touchFps = fps;
             this.lastTouchFps = lastFps;
         }
+
 
         private int fps = 0;
         private int lastFps = 0;
@@ -607,6 +593,40 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             }
         }
 
+        void move(MotionEvent event) {
+            String emsg = "x:" + event.getX() + " y:" + event.getY() + " getAction:" + event.getAction();
+            Tlog.v(TAG, emsg);
+            msg = emsg;
+            int action = event.getAction();
+            switch (action) {
+                case MotionEvent.ACTION_DOWN:
+                    // 如果点击
+                    performClick();
+                    break;
+                case MotionEvent.ACTION_UP:
+//                touchVertex(x, y);
+                    move(0, 0);
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    move(event.getX(), event.getY());
+                    break;
+            }
+            countTouchTimes();
+        }
+
+        private long lastEventTs;
+        private int eventFps;
+        private int lastEventFps;
+
+        private void countTouchTimes() {
+            eventFps++;
+            long l = System.currentTimeMillis();
+            if (l - lastEventTs >= 1000) {
+                lastEventTs = l;
+                lastEventFps = eventFps;
+                eventFps = 1;
+            }
+        }
 
         // 手指移动的x
         // 手指移动的y
@@ -809,6 +829,11 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                     // 画雷达角度
                     canvas.drawArc(oval, (360 - (MAX_SWEEP_ANGLE - 90)), MAX_SWEEP_ANGLE,
                             true, mArcPaint);
+//                    for (int i = 0; i < DEGREE.length; i++) {
+//                        // 画雷达角度
+//                        canvas.drawArc(oval, (360 - (MAX_SWEEP_ANGLE - 90)) + DEGREE[i], MAX_SWEEP_ANGLE,
+//                                true, mDegreePaint);
+//                    }
 
                     // 画雷达xy
                     canvas.drawLine(0, radarTop, radarWidth, radarTop, mCoordPaint);
@@ -824,6 +849,12 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                     canvas.drawText("D-FPS1:" + lastFps + "--FPS2:" + fps, frameX1, frameY, mFramePaint2);
                     canvas.drawText("A-FPS1:" + lastAlgFps + "--FPS2:" + algFps, frameX1, frameY2, mFramePaint2);
                     canvas.drawText("P-FPS1:" + lastTouchFps + "--FPS2:" + touchFps, frameX1, frameY3, mFramePaint2);
+                    if (Math.abs(startDrawTime - lastEventTs) > 3500) { // 防止没有event还绘制
+                        lastEventFps = 0;
+                        eventFps = 0;
+                        lastEventTs = startDrawTime;
+                    }
+                    canvas.drawText("E-FPS1:" + lastEventFps + "--FPS2:" + eventFps, frameX1, frameY4, mFramePaint2);
 
                     // 画错误码
                     if (result != RadarSensor.RC_OK) {
@@ -852,10 +883,10 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                     canvas.drawPoints(collectVertexXY, mVertexPaint);
 
                     // 画手机上的屏幕校准点
-                    canvas.drawCircle(vertexA.x, vertexA.y, VERTEX_RADIUS, mMovePaint);
-                    canvas.drawCircle(vertexB.x, vertexB.y, VERTEX_RADIUS, mMovePaint);
-                    canvas.drawCircle(vertexC.x, vertexC.y, VERTEX_RADIUS, mMovePaint);
-                    canvas.drawCircle(vertexD.x, vertexD.y, VERTEX_RADIUS, mMovePaint);
+                    canvas.drawCircle(vertexA.x, vertexA.y, VERTEX_RADIUS, mPhoneVertexPaint);
+                    canvas.drawCircle(vertexB.x, vertexB.y, VERTEX_RADIUS, mPhoneVertexPaint);
+                    canvas.drawCircle(vertexC.x, vertexC.y, VERTEX_RADIUS, mPhoneVertexPaint);
+                    canvas.drawCircle(vertexD.x, vertexD.y, VERTEX_RADIUS, mPhoneVertexPaint);
 
 
                     canvas.drawPoint(virtualScreen[0], virtualScreen[1], mVirtualScreenA);
@@ -892,7 +923,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
                     // 画手机屏幕触摸点
                     mLastDrawPointS.set(mMovePointS.x, mMovePointS.y);
                     if (mLastDrawPointS.x != 0 && mLastDrawPointS.y != 0) {
-                        canvas.drawCircle(mLastDrawPointS.x, mLastDrawPointS.y, VERTEX_RADIUS, mMovePaint);
+                        canvas.drawCircle(mLastDrawPointS.x, mLastDrawPointS.y, VERTEX_RADIUS, mEventPaint);
                     }
 
 //                    canvas.restore();
@@ -954,6 +985,12 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             mTouchInWallPaint.setTextAlign(Paint.Align.CENTER);
             mTouchInWallPaint.setFakeBoldText(true);
 
+            mEventPaint.setStyle(Paint.Style.FILL);
+            mEventPaint.setColor(Color.RED);
+            mEventPaint.setAntiAlias(true);
+            mEventPaint.setTextAlign(Paint.Align.CENTER);
+            mEventPaint.setFakeBoldText(true);
+
             mTouchInScreenPaint.setStyle(Paint.Style.FILL);
             mTouchInScreenPaint.setColor(Color.GREEN);
             mTouchInScreenPaint.setAntiAlias(true);
@@ -1003,6 +1040,13 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             mArcPaint.setTextAlign(Paint.Align.CENTER);
             mArcPaint.setFakeBoldText(true);
 
+            mDegreePaint.setStyle(Paint.Style.STROKE);
+            mDegreePaint.setColor(Color.parseColor("#AFEEEE"));
+            mDegreePaint.setAntiAlias(true);
+            mDegreePaint.setTextAlign(Paint.Align.CENTER);
+            mDegreePaint.setFakeBoldText(true);
+            mDegreePaint.setAlpha(255 / 2);
+
             mErrorPaint.setStyle(Paint.Style.FILL);
             mErrorPaint.setColor(Color.RED);
             mErrorPaint.setAntiAlias(true);
@@ -1027,13 +1071,13 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             mFramePaint2.setFakeBoldText(true);
             mFramePaint2.setTextSize(txtSize);
 
-            mMovePaint.setStyle(Paint.Style.FILL);
-            mMovePaint.setColor(Color.WHITE);
-            mMovePaint.setAntiAlias(true);
-            mMovePaint.setStrokeWidth(7);
-            mMovePaint.setTextAlign(Paint.Align.CENTER);
-            mMovePaint.setFakeBoldText(true);
-            mMovePaint.setTextSize(txtSize);
+            mPhoneVertexPaint.setStyle(Paint.Style.FILL);
+            mPhoneVertexPaint.setColor(Color.WHITE);
+            mPhoneVertexPaint.setAntiAlias(true);
+            mPhoneVertexPaint.setStrokeWidth(7);
+            mPhoneVertexPaint.setTextAlign(Paint.Align.CENTER);
+            mPhoneVertexPaint.setFakeBoldText(true);
+            mPhoneVertexPaint.setTextSize(txtSize);
         }
 
         private void setStrokeWidth() {
@@ -1045,6 +1089,7 @@ public class RedView extends SurfaceView implements SurfaceHolder.Callback {
             this.mArcPaint.setStrokeWidth(wdr / 2);
             this.mBgDiffPaint.setStrokeWidth(wdr);
             this.mTouchInScreenPaint.setStrokeWidth(wdr);
+            this.mEventPaint.setStrokeWidth(wdr);
             this.mVirtualScreenPaint.setStrokeWidth(wdr / 1.5f);
             this.mVirtualScreenPaintRect.setStrokeWidth(wdr / 2);
             this.mVirtualScreenA.setStrokeWidth(wdr * 2);

@@ -8,6 +8,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.Toast;
 
 import java.util.concurrent.ExecutorService;
@@ -16,6 +17,7 @@ import cn.com.startai.radarwall.R;
 import cn.com.startai.radarwall.RadarSensor;
 import cn.com.startai.radarwall.calibration.Calibration;
 import cn.com.startai.radarwall.calibration.CalibrationManager;
+import cn.com.startai.radarwall.utils.InjectInputPointManager;
 import cn.com.swain.baselib.alg.PointS;
 import cn.com.swain.baselib.display.ScreenUtils;
 import cn.com.swain.baselib.log.Tlog;
@@ -34,6 +36,7 @@ public class RedViewActivity extends AppCompatActivity {
     private RadarSensor sensor;
 
     private boolean canCollect;
+    private InjectInputPointManager mInjectInputPointManager;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -41,7 +44,7 @@ public class RedViewActivity extends AppCompatActivity {
         setContentView(R.layout.activity_redview);
 
         sensor = RadarSensor.getInstance();
-
+        mInjectInputPointManager = InjectInputPointManager.getInstance();
         getWindow().setFlags(
                 WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                 WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
@@ -66,7 +69,6 @@ public class RedViewActivity extends AppCompatActivity {
                 CalibrationManager.getInstance().setPositionData(result, buf);
             }
         };
-
         PointF screenWH19 = ScreenUtils.getScreenWH19(getApplicationContext());
         float ofx = screenWH19.x / 4f; // 4分之一 x
         float oey = screenWH19.y / 8f;// 8分之一 y
@@ -75,7 +77,7 @@ public class RedViewActivity extends AppCompatActivity {
         PointS B = new PointS(A.x, C.y);
         PointS D = new PointS(C.x, A.y);
         PointS S = new PointS(screenWH19.x, screenWH19.y);
-
+        InjectInputPointManager.getInstance().setScreen(S);
         mRedView.setVertex(A, B, C, D);
 
         CalibrationManager.getInstance().setCollectPoint(A, B, C, D, S);
@@ -103,26 +105,26 @@ public class RedViewActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (flag) {
-            stop(null);
-        }
+        stop();
         CalibrationManager.getInstance().setCalibrationCallBack(null);
         CalibrationManager.getInstance().setIVertexFinish(null);
         CalibrationManager.getInstance().stop();
         CalibrationManager.save(getApplicationContext());
     }
 
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        float x = event.getX();
-        float y = event.getY();
-        Tlog.v(TAG, " RedViewActivity onTouchEvent x:" + x + " y:" + y);
-        return super.onTouchEvent(event);
+    public void start(View v) {
+        if (flag) {
+            stop();
+            ((Button) v).setText("start");
+        } else {
+            start();
+            ((Button) v).setText("stop");
+        }
     }
 
-    private boolean flag;
+    private boolean flag = false;
 
-    public void start(View view) {
+    private void start() {
         if (flag) {
             return;
         }
@@ -131,7 +133,7 @@ public class RedViewActivity extends AppCompatActivity {
         sensor.alwaysAcquirePositionData();
     }
 
-    public void stop(View view) {
+    private void stop() {
         if (!flag) {
             return;
         }
@@ -259,6 +261,7 @@ public class RedViewActivity extends AppCompatActivity {
             if (mRedView != null) {
                 mRedView.setPointInScreen(mPointS);
             }
+            mInjectInputPointManager.offer(mPointS);
         }
 
         @Override
@@ -304,4 +307,12 @@ public class RedViewActivity extends AppCompatActivity {
         }
     };
 
+    public void resetBG(View view) {
+        CalibrationManager.getInstance().resetBG();
+        Toast.makeText(getApplicationContext(), "重新收集背景", Toast.LENGTH_SHORT).show();
+    }
+
+    public void toastTest(View view) {
+        Toast.makeText(getApplicationContext(), "clickToastBtn", Toast.LENGTH_SHORT).show();
+    }
 }

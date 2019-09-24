@@ -35,9 +35,117 @@ public class JavaTest {
 
 //        cb();
 
-        str();
-        System.out.println("/////////");
-        str2();
+//        str();
+//        System.out.println("/////////");
+//        str2();
+
+//        testPeak();
+
+        stream();
+    }
+
+    private static void stream() {
+
+        int j = 0;
+        for (int i = 0; i < 10; i++) {
+            System.out.println(i + " :: " + j++);
+        }
+        System.out.println("j :: " + j);
+    }
+
+    private static void testPeak() {
+        float[] data = new float[10];
+        data[0] = 1;
+        data[1] = 2;
+        data[2] = 3;
+        data[3] = 2;
+        data[4] = 1;
+        data[5] = 1;
+        data[6] = 2;
+        data[7] = 3;
+        data[8] = 2;
+        data[9] = 1;
+        int peakNum3 = getPeakNum3(data);
+        System.out.println(peakNum3);
+    }
+
+    /**
+     * （1）先找到所有波峰和波谷
+     * （2）对信号求均值
+     * （3）滤掉所有大于均值的波谷和小于均值的波峰
+     * （4）合并剩下的波峰波谷中相邻的波峰，相邻的波谷，使其满足波峰／波谷的规律
+     * （5）统计剩下的波峰
+     */
+    public static int getPeakNum3(float[] data) {
+        int peak = 0;
+
+        float[] PeakAndTrough = new float[data.length];
+
+        //需要三个不同的值进行比较，取lo,mid，hi分别为三值
+        for (int lo = 0, mid = 1, hi = 2; hi < data.length; hi++) {
+            //先令data[lo]不等于data[mid]
+            while (mid < data.length && data[mid] == data[lo]) {
+                mid++;
+            }
+
+            hi = mid + 1;
+
+            //令data[hi]不等于data[mid]
+            while (hi < data.length && data[hi] == data[mid]) {
+                hi++;
+            }
+
+            if (hi >= data.length) {
+                break;
+            }
+
+            //检测是否为峰值
+            if (data[mid] > data[lo] && data[mid] > data[hi]) {
+                PeakAndTrough[mid] = 1;       //1代表波峰
+                System.out.println(" 波峰 " + mid);
+            } else if (data[mid] < data[lo] && data[mid] < data[hi]) {
+                PeakAndTrough[mid] = -1;      //-1代表波谷
+                System.out.println(" 波谷 " + mid);
+            }
+
+            lo = mid;
+            mid = hi;
+        }
+
+        //计算均值
+        float ave = 0;
+        for (int i = 0; i < data.length; i++) {
+            ave += data[i];
+        }
+        ave /= data.length;
+
+        //排除大于均值的波谷和小于均值的波峰
+        for (int i = 0; i < PeakAndTrough.length; i++) {
+            if ((PeakAndTrough[i] > 0 && data[i] < ave) || (PeakAndTrough[i] < 0 && data[i] > ave)) {
+                System.out.println("PeakAndTrough[" + i + "] = 0;");
+                PeakAndTrough[i] = 0;
+            }
+        }
+
+        //统计波峰数量
+        for (int i = 0; i < PeakAndTrough.length; ) {
+            while (i < PeakAndTrough.length && PeakAndTrough[i] <= 0) {
+                i++;
+            }
+
+            if (i >= PeakAndTrough.length) {
+                break;
+            }
+
+            System.out.println("peak++  i==" + i);
+            peak++;
+
+            while (i < PeakAndTrough.length && PeakAndTrough[i] >= 0) {
+                i++;
+            }
+        }
+
+        return peak;
     }
 
 

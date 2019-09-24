@@ -38,6 +38,7 @@
         <activity android:name=".LineViewActivity" />
         <activity android:name="net.pocketmagic.android.eventinjector.EventInjectorActivity" />
         <activity android:name=".redview.RedViewActivity" />
+        <activity android:name=".InjectTestActivity" />
 
         <service android:name=".aidl.RadarService" />
     </application>

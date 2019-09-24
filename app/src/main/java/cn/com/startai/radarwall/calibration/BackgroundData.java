@@ -66,5 +66,15 @@ public class BackgroundData implements Serializable {
         return point > (fpsCycle * fps + NO_COUNT);
     }
 
+    public void resetCountBg() {
+        this.point = 0;
+        for (int i = 0; i < size; i++) {
+            MIN[i] = Integer.MAX_VALUE;
+            MAX[i] = Integer.MIN_VALUE;
+            SUM[i] = 0;
+            avgBg[i]=0;
+        }
+    }
+
 
 }

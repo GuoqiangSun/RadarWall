@@ -46,9 +46,10 @@ public class RadarSensor {
     }
 
     public synchronized void releaseService() {
-        if (executorService != null) {
-            executorService.shutdown();
-            executorService = null;
+        ExecutorService tExecutorService = executorService;
+        executorService = null;
+        if (tExecutorService != null) {
+            tExecutorService.shutdown();
         }
     }
 
@@ -141,7 +142,15 @@ public class RadarSensor {
 
     public native int setTwiceIntegrationTime(int time1, int time2);
 
-    public native int setLD(int gear);
+    public int openLD() {
+        return setLD(4);
+    }
+
+    public int closeLD() {
+        return setLD(5);
+    }
+
+    private native int setLD(int gear);
 
     public int[] acquirePositionDataJ() {
         return acquirePositionData();
@@ -150,6 +159,7 @@ public class RadarSensor {
     private native int[] acquirePositionData();
 
     public int acquirePositionDataArrayJ(char[] chars, int length) {
+        //            reserveBuf(buf);
         return acquirePositionDataArray(chars, length);
     }
 

@@ -34,7 +34,7 @@ public class Calibration implements Runnable, Serializable {
     private final float[] DEGREE = RadarSensor.DEGREE;
     private final int WEAK_SIGNAL = RadarSensor.WEAK_SIGNAL;
     private final int DATA_HZ = RadarSensor.MAX_FPS;
-    private final int TOUCH_FPS = 15; // 1秒 x帧
+    public static final int TOUCH_FPS = 15; // 1秒 x帧
     private final int AVAILABLE_TOUCH_LENGTH = DATA_HZ / TOUCH_FPS;
     private final int clearPS = Math.min(Math.max(AVAILABLE_TOUCH_LENGTH / 2, 1), 5);
 
@@ -96,6 +96,7 @@ public class Calibration implements Runnable, Serializable {
         this.canCalibration = true;
     }
 
+    // 开启
     public void start() {
         if (this.run) {
             return;
@@ -108,6 +109,7 @@ public class Calibration implements Runnable, Serializable {
         this.executorService.execute(this);
     }
 
+    // 关闭
     public void stop() {
         if (!this.run) {
             return;
@@ -130,6 +132,7 @@ public class Calibration implements Runnable, Serializable {
 
     private int collectIndex = -1;
 
+    // 开始校准点
     public void setCollectIndex(int i) {
         calibrationFinish = false;
         collectIndex = i;
@@ -140,12 +143,20 @@ public class Calibration implements Runnable, Serializable {
 
     private char[] mBuf;
 
+    // 雷达数据（距离点）
     public void setPositionData(int result, char[] buf) {
         if (result == RadarSensor.RC_OK) {
             this.mBuf = buf;
             synchronized (synObj) {
                 synObj.notify();
             }
+        }
+    }
+
+    // 重新收集背景
+    public void resetBG() {
+        if (mBackgroundData != null) {
+            mBackgroundData.resetCountBg();
         }
     }
 
@@ -160,8 +171,8 @@ public class Calibration implements Runnable, Serializable {
         final int[] mDiffBuf = new int[SIZE]; // 测试数据减去背景数据的差值
 
         final int[] mAvailableIndexBuf = new int[SIZE]; // 可用下标
-        final PointS nullPointFSerial = new PointS(-30f, 0f);
-        final PointS touchPointSInWall = new PointS(-30f, 0f);
+        final PointS nullPointFSerial = new PointS(-30f, -30f);
+        final PointS touchPointSInWall = new PointS(-30f, -30f);
         final PointS touchPointSInScreen = new PointS();
 
         if (mBackgroundData.countBGFinish()) {
@@ -224,7 +235,7 @@ public class Calibration implements Runnable, Serializable {
                     if (this.mCallBack != null) {
                         this.mCallBack.onTouchPointInScreen(nullPointFSerial);
                     }
-
+                    touchFps(false);
                 }
                 if (this.mCallBack != null) {
                     this.mCallBack.onTouchPointInWall(nullPointFSerial);
@@ -307,7 +318,7 @@ public class Calibration implements Runnable, Serializable {
             if (mCallBack != null) {
                 mCallBack.onTouchPointInScreen(avgPoints);
             }
-            touchFps();
+            touchFps(true);
         }
     }
 
@@ -316,19 +327,20 @@ public class Calibration implements Runnable, Serializable {
     private long lastTouchFpsTime = 0;
 
     // 触摸点的帧率
-    private void touchFps() {
+    private void touchFps(boolean touch) {
         long l = System.currentTimeMillis();
         if (Math.abs(lastTouchFpsTime - l) >= 1000) {
             lastTouchFps = touchFps;
             touchFps = 0;
             lastTouchFpsTime = l;
         }
-        touchFps++;
+        if (touch) touchFps++;
         if (mCallBack != null) {
             mCallBack.onTouchFps(touchFps, lastTouchFps);
         }
     }
 
+    // 计算校准点
     private int calculationVertex(PointS touchPointS) {
         int add = mVertexCollect.add(touchPointS, collectIndex);
         switch (add) {
@@ -365,6 +377,7 @@ public class Calibration implements Runnable, Serializable {
 
     }
 
+    // 统计背景数据
     private boolean countBg(char[] mDistanceBuf) {
         if (mBackgroundData.countBGFinish()) {
             return true;
